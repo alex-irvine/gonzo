@@ -73,51 +73,30 @@ func (m *DashboardModel) View() string {
 // renderDashboard renders the main dashboard layout
 func (m *DashboardModel) renderDashboard() string {
 	// Ensure minimum height
-	if m.height < 20 {
-		return "Terminal too small. Resize to at least 20 lines."
+	if m.height < 10 {
+		return "Terminal too small. Resize to at least 10 lines."
 	}
-
-	// Calculate required space for charts dynamically
-	requiredChartsHeight := m.calculateRequiredChartsHeight()
 
 	// Filter/Search height depends on whether filter or search is applied (or being edited)
-	filterHeight := 0 // No space when inactive
+	filterHeight := 0
 	if m.hasFilterOrSearch() {
-		filterHeight = 1 // Single row for filter/search
+		filterHeight = 1
 	}
 
-	// Reserve space for status line at bottom
 	statusLineHeight := 1
-
-	// Use full height for proper layout
-	usableHeight := m.height - statusLineHeight - 2 // Use full height minus status line (minus 2 because.. I have no idea why)
-	logsHeight := usableHeight - requiredChartsHeight - filterHeight
-
-	// Final allocation - trust the math
-	chartsHeight := requiredChartsHeight
-
-	// Ensure minimum log space without breaking layout
+	usableHeight := m.height - statusLineHeight - 2
+	logsHeight := usableHeight - filterHeight
 	if logsHeight < 3 {
-		logsHeight = 3 // Absolute minimum
+		logsHeight = 3
 	}
 
-	// Layout calculations complete
-
-	// Top section: 2x2 grid of charts (VERY constrained height)
-	topSection := m.renderChartsGrid(chartsHeight)
-
-	// Middle section: Filter (only when active)
 	var sections []string
-	sections = append(sections, topSection)
 
 	if m.hasFilterOrSearch() {
-		filterSection := m.renderFilter()
-		sections = append(sections, filterSection)
+		sections = append(sections, m.renderFilter())
 	}
 
-	// Bottom section: Log scroll
-	logsSection := m.renderLogScroll(logsHeight)
-	sections = append(sections, logsSection)
+	sections = append(sections, m.renderLogScroll(logsHeight))
 
 	// Combine sections with strict height constraints
 	mainContent := lipgloss.JoinVertical(lipgloss.Left, sections...)

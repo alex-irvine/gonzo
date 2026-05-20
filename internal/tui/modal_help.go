@@ -95,6 +95,13 @@ LOG VIEWER NAVIGATION:
   ↑/↓ or k/j     - Navigate individual entries with smart auto-scroll
   ←/→            - Scroll columns horizontally (when content exceeds width)
 
+YANK / VISUAL SELECT (vim-style):
+  y              - Yank (copy) current log entry to system clipboard
+  v              - Enter visual mode; anchor selection at current entry
+  ↑/↓ or j/k     - In visual mode, extend selection
+  y              - In visual mode, yank the selected range and exit visual
+  Escape         - Exit visual mode without yanking
+
 SECTIONS:
   Words          - Most frequent words in logs
   Attributes     - OTLP attributes by unique value count

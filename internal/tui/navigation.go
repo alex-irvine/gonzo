@@ -201,6 +201,10 @@ func (m *DashboardModel) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 
 	case "escape", "esc":
+		if m.visualMode {
+			m.visualMode = false
+			return m, nil
+		}
 		if m.showModelSelectionModal {
 			m.showModelSelectionModal = false
 			return m, nil
@@ -524,6 +528,34 @@ func (m *DashboardModel) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					m.showColumnConfigModal = true
 					return m, nil
 				}
+			}
+		}
+
+	case "v", "V":
+		// Toggle visual selection mode (vim-style) in the log section
+		if !m.showModal && !m.filterActive && !m.searchActive && !m.showSeverityFilterModal && !m.showK8sFilterModal && !m.showColumnConfigModal && !m.showHelp && !m.showPatternsModal && !m.showStatsModal && !m.showCountsModal && !m.showLogViewerModal && !m.showModelSelectionModal {
+			if m.activeSection == SectionLogs && len(m.logEntries) > 0 {
+				if m.visualMode {
+					m.visualMode = false
+				} else {
+					m.visualMode = true
+					m.visualAnchorIndex = m.selectedLogIndex
+					m.logAutoScroll = false
+				}
+				return m, nil
+			}
+		}
+
+	case "y", "Y":
+		// Yank: copy current log entry (or visual range) to clipboard
+		if !m.showModal && !m.filterActive && !m.searchActive && !m.showSeverityFilterModal && !m.showK8sFilterModal && !m.showColumnConfigModal && !m.showHelp && !m.showPatternsModal && !m.showStatsModal && !m.showCountsModal && !m.showLogViewerModal && !m.showModelSelectionModal {
+			if m.activeSection == SectionLogs && len(m.logEntries) > 0 {
+				if m.visualMode {
+					m.yankVisualSelection()
+				} else {
+					m.yankCurrentLog()
+				}
+				return m, nil
 			}
 		}
 	}
@@ -1348,44 +1380,15 @@ func (m *DashboardModel) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// nextSection moves to the next section
+// nextSection / prevSection are kept as a no-op stub: the dashboard now renders
+// only the log section, so there is nothing to cycle between. Tab is left wired
+// so existing muscle memory doesn't error.
 func (m *DashboardModel) nextSection() {
-	sections := []Section{SectionWords, SectionAttributes, SectionDistribution, SectionCounts, SectionLogs}
-
-	// If current section is not in the list (e.g., SectionFilter), start from the first section
-	if m.activeSection == SectionFilter {
-		m.activeSection = SectionWords
-		return
-	}
-
-	// Find current section and move to next
-	for i, section := range sections {
-		if section == m.activeSection {
-			m.activeSection = sections[(i+1)%len(sections)]
-			// No longer pause when entering log section - logs keep streaming
-			break
-		}
-	}
+	m.activeSection = SectionLogs
 }
 
-// prevSection moves to the previous section
 func (m *DashboardModel) prevSection() {
-	sections := []Section{SectionWords, SectionAttributes, SectionDistribution, SectionCounts, SectionLogs}
-
-	// If current section is not in the list (e.g., SectionFilter), start from the last section
-	if m.activeSection == SectionFilter {
-		m.activeSection = SectionLogs
-		return
-	}
-
-	// Find current section and move to previous
-	for i, section := range sections {
-		if section == m.activeSection {
-			m.activeSection = sections[(i-1+len(sections))%len(sections)]
-			// No longer pause when entering log section - logs keep streaming
-			break
-		}
-	}
+	m.activeSection = SectionLogs
 }
 
 // moveSelection moves the selection within the active section

@@ -83,14 +83,22 @@ func (m *DashboardModel) renderStatusLine() string {
 			statusText = "Type search term • Enter: Apply • ESC: Cancel"
 		}
 	} else if m.activeSection == SectionLogs {
-		if veryNarrow {
-			statusText = "?: Help • ↑↓←→ Nav • Enter"
+		if m.yankFeedback != "" {
+			statusText = m.yankFeedback
+		} else if m.visualMode {
+			if narrow {
+				statusText = "VISUAL • y: Yank • ESC: Cancel"
+			} else {
+				statusText = "-- VISUAL -- • ↑↓ j/k: Extend • y: Yank selection • ESC: Cancel"
+			}
+		} else if veryNarrow {
+			statusText = "?: Help • ↑↓ Nav • y: Yank • v: Visual"
 		} else if narrow {
-			statusText = "?: Help • ↑↓←→ Navigate • Enter: Details"
+			statusText = "?: Help • ↑↓ Navigate • y: Yank • v: Visual • Enter: Details"
 		} else if medium {
-			statusText = "?: Help • ↑↓ ←/→: Navigate • Home/End • PgUp/Dn • Enter: Details"
+			statusText = "?: Help • ↑↓ Navigate • y: Yank • v: Visual • Enter: Details"
 		} else {
-			statusText = "?: Help • Wheel: scroll • ↑↓ ←/→: Navigate • Home: Top • End: Latest • PgUp/PgDn: Page • Enter: Details"
+			statusText = "?: Help • Wheel: scroll • ↑↓ ←/→: Navigate • y: Yank • v: Visual select • Enter: Details"
 		}
 	} else if m.showModal {
 		statusText = "ESC: Close"
@@ -350,9 +358,17 @@ func (m *DashboardModel) renderLogScrollContent(height int, logWidth int) []stri
 		}
 	}
 
+	visualLo, visualHi := -1, -1
+	if m.visualMode {
+		visualLo, visualHi = m.visualRange()
+	}
+
 	for i := startIdx; i < len(m.logEntries) && i < startIdx+maxLines; i++ {
 		entry := m.logEntries[i]
 		isSelected := (m.activeSection == SectionLogs || m.showLogViewerModal) && i == m.selectedLogIndex
+		if m.visualMode && i >= visualLo && i <= visualHi {
+			isSelected = true
+		}
 		formatted := m.formatLogEntry(entry, logWidth, isSelected, columnWidths, m.logViewHorizontalOffset)
 		logLines = append(logLines, formatted)
 	}

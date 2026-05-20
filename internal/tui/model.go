@@ -142,6 +142,12 @@ type DashboardModel struct {
 	logAutoScroll            bool // Auto-scroll to latest logs in log viewer
 	instructionsScrollOffset int  // Scroll position for instructions/filter status screen
 
+	// Visual selection mode (vim-style yank)
+	visualMode        bool
+	visualAnchorIndex int
+	yankFeedback      string
+	yankFeedbackTick  int
+
 	// Modal display options
 	attributeWrappingEnabled bool // Whether to wrap attribute values instead of truncating them
 
@@ -309,6 +315,7 @@ func NewDashboardModel(maxLogBuffer int, updateInterval time.Duration, aiProvide
 		updateInterval:      updateInterval,
 		reverseScrollWheel:  reverseScrollWheel,
 		useLogTime:          useLogTime,
+		activeSection:       SectionLogs,
 		filterInput:         filterInput,
 		searchInput:         searchInput,
 		chatInput:           chatInput,

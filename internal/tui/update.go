@@ -34,6 +34,15 @@ func (m *DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, func() tea.Msg { return msg }
 
 	case TickMsg:
+		// Decay yank feedback so it clears after a few seconds
+		if m.yankFeedback != "" {
+			m.yankFeedbackTick++
+			if m.yankFeedbackTick >= 3 {
+				m.yankFeedback = ""
+				m.yankFeedbackTick = 0
+			}
+		}
+
 		// Update processing rate statistics on every tick
 		m.updateProcessingRateStats()
 
