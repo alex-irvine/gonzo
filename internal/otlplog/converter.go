@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/control-theory/gonzo/internal/timestamp"
+	"github.com/alex-irvine/gonzo/internal/timestamp"
 	commonpb "go.opentelemetry.io/proto/otlp/common/v1"
 	logspb "go.opentelemetry.io/proto/otlp/logs/v1"
 	"google.golang.org/protobuf/encoding/protojson"

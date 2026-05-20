@@ -74,7 +74,7 @@ brews:
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
     # Place formula in the Formula directory
     directory: Formula
-    homepage: "https://github.com/control-theory/gonzo"
+    homepage: "https://github.com/alex-irvine/gonzo"
     description: "Gonzo! The Go based TUI log analysis tool"
     license: "MIT"
     install: |

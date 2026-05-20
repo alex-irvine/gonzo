@@ -324,6 +324,6 @@ test-mode: false
 #   - Basic Config: ./config.yml
 #
 # Support:
-#   - GitHub: https://github.com/control-theory/gonzo
+#   - GitHub: https://github.com/alex-irvine/gonzo
 #   - Slack: https://ctrltheorycommunity.slack.com
 #   - Docs: https://docs.controltheory.com/

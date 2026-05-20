@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/control-theory/gonzo/internal/memory"
+	"github.com/alex-irvine/gonzo/internal/memory"
 )
 
 type StdoutFormatter struct {

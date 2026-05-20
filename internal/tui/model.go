@@ -5,9 +5,9 @@ import (
 	"sort"
 	"time"
 
-	"github.com/control-theory/gonzo/internal/ai"
-	"github.com/control-theory/gonzo/internal/memory"
-	versioncheck "github.com/control-theory/gonzo/internal/version"
+	"github.com/alex-irvine/gonzo/internal/ai"
+	"github.com/alex-irvine/gonzo/internal/memory"
+	versioncheck "github.com/alex-irvine/gonzo/internal/version"
 
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"

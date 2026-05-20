@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/control-theory/gonzo/internal/formats"
+	"github.com/alex-irvine/gonzo/internal/formats"
 	commonpb "go.opentelemetry.io/proto/otlp/common/v1"
 	logspb "go.opentelemetry.io/proto/otlp/logs/v1"
 )

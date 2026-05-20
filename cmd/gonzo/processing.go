@@ -3,9 +3,9 @@ package main
 import (
 	"strings"
 
-	"github.com/control-theory/gonzo/internal/analyzer"
-	"github.com/control-theory/gonzo/internal/otlplog"
-	"github.com/control-theory/gonzo/internal/tui"
+	"github.com/alex-irvine/gonzo/internal/analyzer"
+	"github.com/alex-irvine/gonzo/internal/otlplog"
+	"github.com/alex-irvine/gonzo/internal/tui"
 )
 
 // processLogLine processes a single log line and updates frequency memory

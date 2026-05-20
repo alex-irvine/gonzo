@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/control-theory/gonzo/internal/timestamp"
+	"github.com/alex-irvine/gonzo/internal/timestamp"
 )
 
 type TextAnalyzer struct {
