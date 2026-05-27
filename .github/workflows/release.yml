@@ -7,35 +7,82 @@ on:
 
 permissions:
   contents: write
-  packages: write
 
 jobs:
-  release:
+  build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
+      - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
           cache: true
 
-      - name: Set GO_VERSION environment variable
-        run: echo "GO_VERSION=$(go version | cut -d' ' -f3)" >> $GITHUB_ENV
-
       - name: Run tests
-        run: make test
+        run: go test ./...
 
-      - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v6
+      - name: Build binaries
+        run: ./scripts/build-all.sh ${{ github.ref_name }}
+
+      - name: Create checksums
+        run: |
+          cd dist
+          sha256sum * > checksums.txt
+          cat checksums.txt
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
         with:
-          version: latest
-          args: release --clean
+          files: |
+            dist/gonzofk-linux-amd64
+            dist/gonzofk-linux-arm64
+            dist/gonzofk-darwin-amd64
+            dist/gonzofk-darwin-arm64
+            dist/gonzofk-windows-amd64.exe
+            dist/checksums.txt
+          body: |
+            ## gonzofk ${{ github.ref_name }}
+
+            Fork of [control-theory/gonzo](https://github.com/control-theory/gonzo). Binary renamed `gonzofk` so it can coexist with upstream `gonzo`.
+
+            ### Prerequisites
+
+            Requires [GitHub CLI](https://cli.github.com) (`gh`). Install and authenticate:
+            ```bash
+            sudo apt install gh   # or: brew install gh  # or: winget install GitHub.cli
+            gh auth login
+            ```
+
+            ### Linux (amd64)
+
+            ```bash
+            mkdir -p ~/.local/bin
+            gh release download --repo alex-irvine/gonzo --pattern 'gonzofk-linux-amd64' --output ~/.local/bin/gonzofk --clobber
+            chmod +x ~/.local/bin/gonzofk
+            ```
+
+            ### macOS (Apple Silicon)
+
+            ```bash
+            mkdir -p ~/.local/bin
+            gh release download --repo alex-irvine/gonzo --pattern 'gonzofk-darwin-arm64' --output ~/.local/bin/gonzofk --clobber
+            chmod +x ~/.local/bin/gonzofk
+            ```
+
+            ### Windows (PowerShell)
+
+            ```powershell
+            gh release download --repo alex-irvine/gonzo --pattern "gonzofk-windows-amd64.exe" --output "$HOME\.local\bin\gonzofk.exe" --clobber
+            ```
+
+            ### Update
+
+            Re-run the same install command for your OS.
+
+            ### Checksums
+            See `checksums.txt` for SHA256 hashes.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
-          GO_VERSION: ${{ env.GO_VERSION }}

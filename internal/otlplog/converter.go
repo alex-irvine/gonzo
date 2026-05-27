@@ -15,13 +15,13 @@ import (
 
 // LogConverter converts various log formats to OTLP format
 type LogConverter struct {
-	timestampParser *timestamp.Parser
-	levelRegex      *regexp.Regexp
-	jsonRegex       *regexp.Regexp
-	jsonMarshaler   protojson.MarshalOptions
-	jsonUnmarshaler protojson.UnmarshalOptions
+	timestampParser  *timestamp.Parser
+	levelRegex       *regexp.Regexp
+	jsonRegex        *regexp.Regexp
+	jsonMarshaler    protojson.MarshalOptions
+	jsonUnmarshaler  protojson.UnmarshalOptions
 	customFormatName string
-	customParser    interface{} // Will hold *formats.Parser when needed
+	customParser     interface{} // Will hold *formats.Parser when needed
 }
 
 // NewLogConverter creates a new log converter
@@ -45,7 +45,7 @@ func NewLogConverterWithFormat(formatName string, parser interface{}) *LogConver
 			DiscardUnknown: true,
 		},
 		customFormatName: formatName,
-		customParser:    parser,
+		customParser:     parser,
 	}
 }
 
@@ -142,7 +142,6 @@ func (lc *LogConverter) extractTimestampFromText(line string) uint64 {
 	// If no timestamp found, use current time
 	return uint64(time.Now().UnixNano())
 }
-
 
 // isVictoriaLogsFormat checks if JSON has Victoria Logs specific fields
 func (lc *LogConverter) isVictoriaLogsFormat(data map[string]any) bool {

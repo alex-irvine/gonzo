@@ -19,7 +19,7 @@ func NewStdinReader() *StdinReader {
 
 func (r *StdinReader) ReadLines(ctx context.Context, output chan<- string) error {
 	defer close(output)
-	
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -31,7 +31,7 @@ func (r *StdinReader) ReadLines(ctx context.Context, output chan<- string) error
 				}
 				return nil
 			}
-			
+
 			line := r.scanner.Text()
 			if line != "" {
 				select {

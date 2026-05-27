@@ -22,11 +22,11 @@ type AttributeStats struct {
 }
 
 type AttributeStatsEntry struct {
-	Key               string
-	UniqueValueCount  int
-	TotalCount        int64
-	LastSeen          time.Time
-	FirstSeen         time.Time
+	Key              string
+	UniqueValueCount int
+	TotalCount       int64
+	LastSeen         time.Time
+	FirstSeen        time.Time
 	Values           map[string]int64 // Individual values and their counts
 }
 
@@ -56,7 +56,7 @@ func NewFrequencyMemory(maxSize int) *FrequencyMemory {
 func (fm *FrequencyMemory) AddWords(words []string) {
 	fm.mutex.Lock()
 	defer fm.mutex.Unlock()
-	
+
 	now := time.Now()
 	for _, word := range words {
 		if entry, exists := fm.words[word]; exists {
@@ -71,7 +71,7 @@ func (fm *FrequencyMemory) AddWords(words []string) {
 			}
 		}
 	}
-	
+
 	if len(fm.words) > fm.maxSize {
 		fm.pruneWords()
 	}
@@ -80,7 +80,7 @@ func (fm *FrequencyMemory) AddWords(words []string) {
 func (fm *FrequencyMemory) AddPhrases(phrases []string) {
 	fm.mutex.Lock()
 	defer fm.mutex.Unlock()
-	
+
 	now := time.Now()
 	for _, phrase := range phrases {
 		if entry, exists := fm.phrases[phrase]; exists {
@@ -95,7 +95,7 @@ func (fm *FrequencyMemory) AddPhrases(phrases []string) {
 			}
 		}
 	}
-	
+
 	if len(fm.phrases) > fm.maxSize {
 		fm.prunePhrases()
 	}
@@ -104,7 +104,7 @@ func (fm *FrequencyMemory) AddPhrases(phrases []string) {
 func (fm *FrequencyMemory) AddAttributes(attributes map[string]string) {
 	fm.mutex.Lock()
 	defer fm.mutex.Unlock()
-	
+
 	now := time.Now()
 	for key, value := range attributes {
 		if stats, exists := fm.attributes[key]; exists {
@@ -125,7 +125,7 @@ func (fm *FrequencyMemory) AddAttributes(attributes map[string]string) {
 			}
 		}
 	}
-	
+
 	if len(fm.attributes) > fm.maxSize {
 		fm.pruneAttributes()
 	}
@@ -134,7 +134,7 @@ func (fm *FrequencyMemory) AddAttributes(attributes map[string]string) {
 func (fm *FrequencyMemory) GetSnapshot() *FrequencySnapshot {
 	fm.mutex.RLock()
 	defer fm.mutex.RUnlock()
-	
+
 	words := make([]*FrequencyEntry, 0, len(fm.words))
 	for _, entry := range fm.words {
 		words = append(words, &FrequencyEntry{
@@ -144,7 +144,7 @@ func (fm *FrequencyMemory) GetSnapshot() *FrequencySnapshot {
 			LastSeen:  entry.LastSeen,
 		})
 	}
-	
+
 	phrases := make([]*FrequencyEntry, 0, len(fm.phrases))
 	for _, entry := range fm.phrases {
 		phrases = append(phrases, &FrequencyEntry{
@@ -154,21 +154,21 @@ func (fm *FrequencyMemory) GetSnapshot() *FrequencySnapshot {
 			LastSeen:  entry.LastSeen,
 		})
 	}
-	
+
 	sort.Slice(words, func(i, j int) bool {
 		if words[i].Count == words[j].Count {
 			return words[i].Term < words[j].Term // Secondary sort alphabetically
 		}
 		return words[i].Count > words[j].Count
 	})
-	
+
 	sort.Slice(phrases, func(i, j int) bool {
 		if phrases[i].Count == phrases[j].Count {
 			return phrases[i].Term < phrases[j].Term // Secondary sort alphabetically
 		}
 		return phrases[i].Count > phrases[j].Count
 	})
-	
+
 	attributes := make([]*AttributeStatsEntry, 0, len(fm.attributes))
 	for _, stats := range fm.attributes {
 		// Copy the values map to include individual value counts
@@ -176,24 +176,24 @@ func (fm *FrequencyMemory) GetSnapshot() *FrequencySnapshot {
 		for key, count := range stats.UniqueValues {
 			valuesCopy[key] = count
 		}
-		
+
 		attributes = append(attributes, &AttributeStatsEntry{
-			Key:               stats.Key,
-			UniqueValueCount:  len(stats.UniqueValues),
-			TotalCount:        stats.TotalCount,
-			FirstSeen:         stats.FirstSeen,
-			LastSeen:          stats.LastSeen,
+			Key:              stats.Key,
+			UniqueValueCount: len(stats.UniqueValues),
+			TotalCount:       stats.TotalCount,
+			FirstSeen:        stats.FirstSeen,
+			LastSeen:         stats.LastSeen,
 			Values:           valuesCopy,
 		})
 	}
-	
+
 	sort.Slice(attributes, func(i, j int) bool {
 		if attributes[i].UniqueValueCount == attributes[j].UniqueValueCount {
 			return attributes[i].Key < attributes[j].Key // Secondary sort alphabetically
 		}
 		return attributes[i].UniqueValueCount > attributes[j].UniqueValueCount
 	})
-	
+
 	return &FrequencySnapshot{
 		Words:      words,
 		Phrases:    phrases,
@@ -206,14 +206,14 @@ func (fm *FrequencyMemory) pruneWords() {
 	for _, entry := range fm.words {
 		entries = append(entries, entry)
 	}
-	
+
 	sort.Slice(entries, func(i, j int) bool {
 		if entries[i].Count == entries[j].Count {
 			return entries[i].Term < entries[j].Term // Secondary sort alphabetically
 		}
 		return entries[i].Count > entries[j].Count
 	})
-	
+
 	fm.words = make(map[string]*FrequencyEntry)
 	keepCount := fm.maxSize * 3 / 4
 	for i := 0; i < keepCount && i < len(entries); i++ {
@@ -226,14 +226,14 @@ func (fm *FrequencyMemory) prunePhrases() {
 	for _, entry := range fm.phrases {
 		entries = append(entries, entry)
 	}
-	
+
 	sort.Slice(entries, func(i, j int) bool {
 		if entries[i].Count == entries[j].Count {
 			return entries[i].Term < entries[j].Term // Secondary sort alphabetically
 		}
 		return entries[i].Count > entries[j].Count
 	})
-	
+
 	fm.phrases = make(map[string]*FrequencyEntry)
 	keepCount := fm.maxSize * 3 / 4
 	for i := 0; i < keepCount && i < len(entries); i++ {
@@ -244,29 +244,29 @@ func (fm *FrequencyMemory) prunePhrases() {
 func (fm *FrequencyMemory) pruneAttributes() {
 	entries := make([]*AttributeStatsEntry, 0, len(fm.attributes))
 	for _, stats := range fm.attributes {
-		// Copy the values map 
+		// Copy the values map
 		valuesCopy := make(map[string]int64)
 		for key, count := range stats.UniqueValues {
 			valuesCopy[key] = count
 		}
-		
+
 		entries = append(entries, &AttributeStatsEntry{
-			Key:               stats.Key,
-			UniqueValueCount:  len(stats.UniqueValues),
-			TotalCount:        stats.TotalCount,
-			FirstSeen:         stats.FirstSeen,
-			LastSeen:          stats.LastSeen,
+			Key:              stats.Key,
+			UniqueValueCount: len(stats.UniqueValues),
+			TotalCount:       stats.TotalCount,
+			FirstSeen:        stats.FirstSeen,
+			LastSeen:         stats.LastSeen,
 			Values:           valuesCopy,
 		})
 	}
-	
+
 	sort.Slice(entries, func(i, j int) bool {
 		if entries[i].UniqueValueCount == entries[j].UniqueValueCount {
 			return entries[i].Key < entries[j].Key // Secondary sort alphabetically
 		}
 		return entries[i].UniqueValueCount > entries[j].UniqueValueCount
 	})
-	
+
 	fm.attributes = make(map[string]*AttributeStats)
 	keepCount := fm.maxSize * 3 / 4
 	for i := 0; i < keepCount && i < len(entries); i++ {
@@ -285,7 +285,7 @@ func (fm *FrequencyMemory) pruneAttributes() {
 func (fm *FrequencyMemory) Reset() {
 	fm.mutex.Lock()
 	defer fm.mutex.Unlock()
-	
+
 	fm.words = make(map[string]*FrequencyEntry)
 	fm.phrases = make(map[string]*FrequencyEntry)
 	fm.attributes = make(map[string]*AttributeStats)

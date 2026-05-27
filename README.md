@@ -5,6 +5,11 @@
 
 # Gonzo - The Go based TUI for log analysis
 
+> **gonzofk** — a personal fork of [control-theory/gonzo](https://github.com/control-theory/gonzo).
+> The binary is renamed **`gonzofk`** so it installs alongside upstream `gonzo` without clobbering it.
+> All commands below work the same; substitute `gonzofk` for `gonzo`.
+> Install with [the prebuilt release](#install-the-gonzofk-fork) or `make build` (outputs `build/gonzofk`).
+
 📢 **LIVE SESSION RECORDING NOW AVAILABLE:**  
 **Gonzo Roadmap & Pro Tips Live Demo with Maintainers**  
 [Watch here](https://www.controltheory.com/videos/gonzo-roadmap-and-pro-tips-live-demo-session/)
@@ -96,36 +101,47 @@ Here are some references to get you started:
 
 ## 🚀 Quick Start
 
-### Installation
+### Install the `gonzofk` fork
 
-#### Using Go
+#### Prebuilt release (recommended)
+
+Releases are published on tag push (`v*`). Download with the [GitHub CLI](https://cli.github.com):
 
 ```bash
-go install github.com/control-theory/gonzo/cmd/gonzo@latest
+# Linux (amd64)
+mkdir -p ~/.local/bin
+gh release download --repo alex-irvine/gonzo --pattern 'gonzofk-linux-amd64' --output ~/.local/bin/gonzofk --clobber
+chmod +x ~/.local/bin/gonzofk
+
+# macOS (Apple Silicon)
+gh release download --repo alex-irvine/gonzo --pattern 'gonzofk-darwin-arm64' --output ~/.local/bin/gonzofk --clobber
+chmod +x ~/.local/bin/gonzofk
 ```
 
-#### Using Homebrew (macOS/Linux)
+Make sure `~/.local/bin` is on your `PATH`.
+
+#### Build from source
 
 ```bash
-brew install gonzo
-```
-
-#### Download Binary
-
-Download the latest release for your platform from the [releases page](https://github.com/control-theory/gonzo/releases).
-
-#### Using Nix package manager (beta support)
-
-```bash
-nix run github:control-theory/gonzo
-```
-
-#### Build from Source
-
-```bash
-git clone https://github.com/control-theory/gonzo.git
+git clone https://github.com/alex-irvine/gonzo.git
 cd gonzo
-make build
+make build            # outputs ./build/gonzofk
+make install          # installs gonzofk to $GOPATH/bin
+```
+
+Or with Go directly:
+
+```bash
+go build -o gonzofk ./cmd/gonzofk
+# NOTE: `go run main.go` will NOT work — the package spans multiple files.
+# Use the package path instead:
+go run ./cmd/gonzofk
+```
+
+#### Using Nix (flake)
+
+```bash
+nix run github:alex-irvine/gonzo
 ```
 
 ## 📖 Usage

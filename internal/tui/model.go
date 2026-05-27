@@ -326,11 +326,11 @@ func NewDashboardModel(maxLogBuffer int, updateInterval time.Duration, aiProvide
 		heatmapData:         make([]HeatmapMinute, 0),
 		drain3BySeverity:    initializeDrain3BySeverity(),
 		servicesBySeverity:  make(map[string][]ServiceCount),
-		availableIntervals: availableIntervals,
-		currentIntervalIdx: currentIdx,
-		infoViewport:       viewport.New(80, 20), // Will be resized later
-		chatViewport:        viewport.New(30, 20),        // Will be resized later
-		modalActiveSection:  "info",                      // Start with info section active
+		availableIntervals:  availableIntervals,
+		currentIntervalIdx:  currentIdx,
+		infoViewport:        viewport.New(80, 20), // Will be resized later
+		chatViewport:        viewport.New(30, 20), // Will be resized later
+		modalActiveSection:  "info",               // Start with info section active
 		chatHistory:         make([]string, 0),
 		chatAutoScroll:      true,               // Enable auto-scroll for new messages
 		drain3Manager:       NewDrain3Manager(), // Initialize drain3 manager

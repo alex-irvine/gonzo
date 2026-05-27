@@ -17,26 +17,26 @@
       buildGoApplication = gomod2nix.legacyPackages.${system}.buildGoApplication;
     in {
       packages.default = buildGoApplication rec {
-        pname = "gonzo";
+        pname = "gonzofk";
         version = "0.1.5";
         src = ./.;
         modules = ./gomod2nix.toml;
 
-        # If you split binaries later, enable: subPackages = [ "cmd/gonzo" ];
+        subPackages = ["cmd/gonzofk"];
         ldflags = ["-s" "-w"];
 
         meta = with pkgs.lib; {
-          description = "Go-based TUI for log analysis";
-          homepage = "https://github.com/control-theory/gonzo";
+          description = "Fork of control-theory/gonzo (Go TUI log analyzer)";
+          homepage = "https://github.com/alex-irvine/gonzo";
           license = licenses.mit;
-          mainProgram = "gonzo";
+          mainProgram = "gonzofk";
           platforms = platforms.unix;
         };
       };
 
       apps.default = {
         type = "app";
-        program = "${self.packages.${system}.default}/bin/gonzo";
+        program = "${self.packages.${system}.default}/bin/gonzofk";
       };
 
       devShells.default = pkgs.mkShell {

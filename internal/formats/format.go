@@ -421,7 +421,7 @@ func (p *Parser) ParseTimestamp(value interface{}, format string) (time.Time, er
 		if err != nil {
 			return time.Time{}, err
 		}
-		return time.Unix(0, ns), nil	
+		return time.Unix(0, ns), nil
 	case "rfc3339":
 		return time.Parse(time.RFC3339, valueStr)
 	default:

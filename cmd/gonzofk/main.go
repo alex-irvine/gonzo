@@ -26,35 +26,35 @@ func GetVersionInfo() (string, string) {
 
 // Config struct for application configuration
 type Config struct {
-	MemorySize           int           `mapstructure:"memory-size"`
-	UpdateInterval       time.Duration `mapstructure:"update-interval"`
-	LogBuffer            int           `mapstructure:"log-buffer"`
-	TestMode             bool          `mapstructure:"test-mode"`
-	ConfigFile           string        `mapstructure:"config"`
-	AIProvider           string        `mapstructure:"ai-provider"`
-	AIModel              string        `mapstructure:"ai-model"`
-	Files                []string      `mapstructure:"files"`
-	Follow               bool          `mapstructure:"follow"`
-	OTLPEnabled          bool          `mapstructure:"otlp-enabled"`
-	OTLPGRPCPort         int           `mapstructure:"otlp-grpc-port"`
-	OTLPHTTPPort         int           `mapstructure:"otlp-http-port"`
-	VmlogsURL            string        `mapstructure:"vmlogs-url"`
-	VmlogsUser           string        `mapstructure:"vmlogs-user"`
-	VmlogsPassword       string        `mapstructure:"vmlogs-password"`
-	VmlogsQuery          string        `mapstructure:"vmlogs-query"`
-	K8sEnabled           bool          `mapstructure:"k8s-enabled"`
-	K8sKubeconfig        string        `mapstructure:"k8s-kubeconfig"`
-	K8sContext           string        `mapstructure:"k8s-context"`
-	K8sNamespaces        []string      `mapstructure:"k8s-namespaces"`
-	K8sSelector          string        `mapstructure:"k8s-selector"`
-	K8sSince             int64         `mapstructure:"k8s-since"`
-	K8sTailLines         int64         `mapstructure:"k8s-tail-lines"`
-	Skin                 string        `mapstructure:"skin"`
-	StopWords            []string      `mapstructure:"stop-words"`
-	Format               string        `mapstructure:"format"`
-	DisableVersionCheck  bool          `mapstructure:"disable-version-check"`
-	ReverseScrollWheel   bool          `mapstructure:"reverse-scroll-wheel"`
-	UseLogTime           bool          `mapstructure:"use-log-time"`
+	MemorySize          int           `mapstructure:"memory-size"`
+	UpdateInterval      time.Duration `mapstructure:"update-interval"`
+	LogBuffer           int           `mapstructure:"log-buffer"`
+	TestMode            bool          `mapstructure:"test-mode"`
+	ConfigFile          string        `mapstructure:"config"`
+	AIProvider          string        `mapstructure:"ai-provider"`
+	AIModel             string        `mapstructure:"ai-model"`
+	Files               []string      `mapstructure:"files"`
+	Follow              bool          `mapstructure:"follow"`
+	OTLPEnabled         bool          `mapstructure:"otlp-enabled"`
+	OTLPGRPCPort        int           `mapstructure:"otlp-grpc-port"`
+	OTLPHTTPPort        int           `mapstructure:"otlp-http-port"`
+	VmlogsURL           string        `mapstructure:"vmlogs-url"`
+	VmlogsUser          string        `mapstructure:"vmlogs-user"`
+	VmlogsPassword      string        `mapstructure:"vmlogs-password"`
+	VmlogsQuery         string        `mapstructure:"vmlogs-query"`
+	K8sEnabled          bool          `mapstructure:"k8s-enabled"`
+	K8sKubeconfig       string        `mapstructure:"k8s-kubeconfig"`
+	K8sContext          string        `mapstructure:"k8s-context"`
+	K8sNamespaces       []string      `mapstructure:"k8s-namespaces"`
+	K8sSelector         string        `mapstructure:"k8s-selector"`
+	K8sSince            int64         `mapstructure:"k8s-since"`
+	K8sTailLines        int64         `mapstructure:"k8s-tail-lines"`
+	Skin                string        `mapstructure:"skin"`
+	StopWords           []string      `mapstructure:"stop-words"`
+	Format              string        `mapstructure:"format"`
+	DisableVersionCheck bool          `mapstructure:"disable-version-check"`
+	ReverseScrollWheel  bool          `mapstructure:"reverse-scroll-wheel"`
+	UseLogTime          bool          `mapstructure:"use-log-time"`
 }
 
 var (

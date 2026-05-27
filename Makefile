@@ -2,8 +2,8 @@
 # Modern TUI dashboard for OTLP log analysis
 
 # Project configuration
-BINARY_NAME := gonzo
-CMD_DIR := ./cmd/gonzo
+BINARY_NAME := gonzofk
+CMD_DIR := ./cmd/gonzofk
 BUILD_DIR := ./build
 DIST_DIR := ./dist
 

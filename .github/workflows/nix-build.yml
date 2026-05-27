@@ -34,8 +34,8 @@ jobs:
         run: nix build .#default --extra-experimental-features nix-command --extra-experimental-features flakes --print-build-logs
 
       # Smoke test the built binary
-      - name: Run gonzo --version
-        run: ./result/bin/gonzo --version
+      - name: Run gonzofk --version
+        run: ./result/bin/gonzofk --version
 
   # Optional: run flake checks if you add them later (nix flake check)
   checks:

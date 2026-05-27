@@ -29,7 +29,7 @@ func NewOTLPAnalyzer() *OTLPAnalyzer {
 func (oa *OTLPAnalyzer) AnalyzeOTLPRecord(record *logspb.LogRecord) *AnalysisResult {
 	// Extract text content from various parts of the OTLP record
 	textContent := oa.extractTextContent(record)
-	
+
 	// Use the existing text analyzer to process the extracted content
 	return oa.textAnalyzer.AnalyzeLine(textContent)
 }
@@ -41,7 +41,7 @@ func (oa *OTLPAnalyzer) AnalyzeOTLPLogsData(logsData *logspb.LogsData) *Analysis
 		Words:   []string{},
 		Phrases: []string{},
 	}
-	
+
 	// Process all resource logs
 	for _, resourceLog := range logsData.ResourceLogs {
 		// Process all scope logs within each resource
@@ -54,14 +54,14 @@ func (oa *OTLPAnalyzer) AnalyzeOTLPLogsData(logsData *logspb.LogsData) *Analysis
 			}
 		}
 	}
-	
+
 	return combinedResult
 }
 
 // ExtractAttributesFromOTLPRecord extracts attribute key-value pairs from an OTLP log record
 func (oa *OTLPAnalyzer) ExtractAttributesFromOTLPRecord(record *logspb.LogRecord) map[string]string {
 	attributes := make(map[string]string)
-	
+
 	// Extract from log record attributes
 	for _, attr := range record.Attributes {
 		if attr.Key != "" && attr.Value != nil {
@@ -71,14 +71,14 @@ func (oa *OTLPAnalyzer) ExtractAttributesFromOTLPRecord(record *logspb.LogRecord
 			}
 		}
 	}
-	
+
 	return attributes
 }
 
 // ExtractAttributesFromOTLPLogsData extracts all attribute key-value pairs from OTLP LogsData
 func (oa *OTLPAnalyzer) ExtractAttributesFromOTLPLogsData(logsData *logspb.LogsData) map[string]string {
 	allAttributes := make(map[string]string)
-	
+
 	// Process all resource logs
 	for _, resourceLog := range logsData.ResourceLogs {
 		// Extract from resource attributes
@@ -92,7 +92,7 @@ func (oa *OTLPAnalyzer) ExtractAttributesFromOTLPLogsData(logsData *logspb.LogsD
 				}
 			}
 		}
-		
+
 		// Process all scope logs within each resource
 		for _, scopeLog := range resourceLog.ScopeLogs {
 			// Process all log records within each scope
@@ -104,7 +104,7 @@ func (oa *OTLPAnalyzer) ExtractAttributesFromOTLPLogsData(logsData *logspb.LogsD
 			}
 		}
 	}
-	
+
 	return allAttributes
 }
 
@@ -115,7 +115,7 @@ func (oa *OTLPAnalyzer) extractTextContent(record *logspb.LogRecord) string {
 	if bodyText := oa.extractFromBody(record.Body); bodyText != "" {
 		return bodyText
 	}
-	
+
 	return ""
 }
 
@@ -124,7 +124,7 @@ func (oa *OTLPAnalyzer) extractFromBody(body *commonpb.AnyValue) string {
 	if body == nil {
 		return ""
 	}
-	
+
 	return oa.extractFromAnyValue(body)
 }
 
@@ -133,21 +133,21 @@ func (oa *OTLPAnalyzer) extractFromAttributes(attributes []*commonpb.KeyValue) s
 	if len(attributes) == 0 {
 		return ""
 	}
-	
+
 	var textParts []string
-	
+
 	for _, attr := range attributes {
 		// Add the key itself as it might be meaningful
 		if attr.Key != "" {
 			textParts = append(textParts, attr.Key)
 		}
-		
+
 		// Extract text from the value
 		if valueText := oa.extractFromAnyValue(attr.Value); valueText != "" {
 			textParts = append(textParts, valueText)
 		}
 	}
-	
+
 	return strings.Join(textParts, " ")
 }
 
@@ -156,7 +156,7 @@ func (oa *OTLPAnalyzer) extractFromAnyValue(value *commonpb.AnyValue) string {
 	if value == nil {
 		return ""
 	}
-	
+
 	switch v := value.Value.(type) {
 	case *commonpb.AnyValue_StringValue:
 		return v.StringValue
@@ -183,14 +183,14 @@ func (oa *OTLPAnalyzer) extractFromArrayValue(arrayValue *commonpb.ArrayValue) s
 	if arrayValue == nil || len(arrayValue.Values) == 0 {
 		return ""
 	}
-	
+
 	var textParts []string
 	for _, value := range arrayValue.Values {
 		if text := oa.extractFromAnyValue(value); text != "" {
 			textParts = append(textParts, text)
 		}
 	}
-	
+
 	return strings.Join(textParts, " ")
 }
 
@@ -199,7 +199,7 @@ func (oa *OTLPAnalyzer) extractFromKVListValue(kvList *commonpb.KeyValueList) st
 	if kvList == nil || len(kvList.Values) == 0 {
 		return ""
 	}
-	
+
 	var textParts []string
 	for _, kv := range kvList.Values {
 		if kv.Key != "" {
@@ -209,7 +209,7 @@ func (oa *OTLPAnalyzer) extractFromKVListValue(kvList *commonpb.KeyValueList) st
 			textParts = append(textParts, valueText)
 		}
 	}
-	
+
 	return strings.Join(textParts, " ")
 }
 
@@ -218,7 +218,7 @@ func (oa *OTLPAnalyzer) extractStringFromAnyValue(value *commonpb.AnyValue) stri
 	if value == nil {
 		return ""
 	}
-	
+
 	switch v := value.Value.(type) {
 	case *commonpb.AnyValue_StringValue:
 		return v.StringValue

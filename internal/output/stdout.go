@@ -9,7 +9,7 @@ import (
 )
 
 type StdoutFormatter struct {
-	processedLines        int64
+	processedLines         int64
 	intervalProcessedLines int64
 }
 
@@ -24,7 +24,7 @@ func (sf *StdoutFormatter) RecordLineProcessed() {
 
 func (sf *StdoutFormatter) PrintMetrics(snapshot *memory.FrequencySnapshot) {
 	timestamp := time.Now().Format("2006-01-02 15:04:05")
-	
+
 	fmt.Printf("\n═══════════════════════════════════════════════════════════════\n")
 	fmt.Printf("📊 Log Analysis Report - %s\n", timestamp)
 	fmt.Printf("═══════════════════════════════════════════════════════════════\n")
@@ -42,11 +42,11 @@ func (sf *StdoutFormatter) PrintMetrics(snapshot *memory.FrequencySnapshot) {
 		if len(snapshot.Words) < topWords {
 			topWords = len(snapshot.Words)
 		}
-		
+
 		for i := 0; i < topWords; i++ {
 			entry := snapshot.Words[i]
 			bar := sf.createBar(entry.Count, snapshot.Words[0].Count, 20)
-			fmt.Printf("%2d. %-15s │%s│ %d\n", 
+			fmt.Printf("%2d. %-15s │%s│ %d\n",
 				i+1, entry.Term, bar, entry.Count)
 		}
 		fmt.Printf("\n")
@@ -59,7 +59,7 @@ func (sf *StdoutFormatter) PrintMetrics(snapshot *memory.FrequencySnapshot) {
 		if len(snapshot.Phrases) < topPhrases {
 			topPhrases = len(snapshot.Phrases)
 		}
-		
+
 		for i := 0; i < topPhrases; i++ {
 			entry := snapshot.Phrases[i]
 			bar := sf.createBar(entry.Count, snapshot.Phrases[0].Count, 15)
@@ -68,7 +68,7 @@ func (sf *StdoutFormatter) PrintMetrics(snapshot *memory.FrequencySnapshot) {
 			if len(phrase) > maxLen {
 				phrase = phrase[:maxLen-3] + "..."
 			}
-			fmt.Printf("%2d. %-33s │%s│ %d\n", 
+			fmt.Printf("%2d. %-33s │%s│ %d\n",
 				i+1, phrase, bar, entry.Count)
 		}
 		fmt.Printf("\n")
@@ -81,7 +81,7 @@ func (sf *StdoutFormatter) PrintMetrics(snapshot *memory.FrequencySnapshot) {
 		if len(snapshot.Attributes) < topAttributes {
 			topAttributes = len(snapshot.Attributes)
 		}
-		
+
 		for i := 0; i < topAttributes; i++ {
 			entry := snapshot.Attributes[i]
 			var maxUniqueCount int
@@ -96,7 +96,7 @@ func (sf *StdoutFormatter) PrintMetrics(snapshot *memory.FrequencySnapshot) {
 			if len(key) > maxLen {
 				key = key[:maxLen-3] + "..."
 			}
-			fmt.Printf("%2d. %-33s │%s│ %d unique values (%d total)\n", 
+			fmt.Printf("%2d. %-33s │%s│ %d unique values (%d total)\n",
 				i+1, key, bar, entry.UniqueValueCount, entry.TotalCount)
 		}
 		fmt.Printf("\n")
@@ -120,12 +120,12 @@ func (sf *StdoutFormatter) createBar(count, maxCount int64, width int) string {
 	if maxCount == 0 {
 		return strings.Repeat(" ", width)
 	}
-	
+
 	filled := int((float64(count) / float64(maxCount)) * float64(width))
 	if filled == 0 && count > 0 {
 		filled = 1
 	}
-	
+
 	bar := strings.Repeat("█", filled) + strings.Repeat("░", width-filled)
 	return bar
 }
@@ -144,7 +144,7 @@ func (sf *StdoutFormatter) printFrequencyDistribution(words []*memory.FrequencyE
 	}
 
 	distribution := make([]int, len(ranges))
-	
+
 	for _, word := range words {
 		for i, r := range ranges {
 			if word.Count >= r.min && word.Count <= r.max {
