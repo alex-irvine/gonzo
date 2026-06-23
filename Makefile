@@ -175,6 +175,11 @@ run: build ## Run TUI version with sample data (requires TTY)
 		echo "$(RED)test.json not found. Please ensure you have sample OTLP data.$(NC)"; \
 	fi
 
+tree-demo: build ## Run TUI with curated structured logs to test the details JSON tree (requires TTY)
+	@echo "$(BLUE)Loading structured sample logs...$(NC)"
+	@echo "$(YELLOW)Select a log row and press Enter to open the JSON tree. Use ↑/↓ to move, Enter/Space to expand/collapse, y/Y to yank.$(NC)"
+	@$(BUILD_DIR)/$(BINARY_NAME) -f test-data/structured-sample.json --update-interval=1s
+
 demo: build ## Demo TUI version (shows instructions)
 	@echo "$(PURPLE)🎯 TUI Log Analyzer Dashboard Demo$(NC)"
 	@echo "=================================="
