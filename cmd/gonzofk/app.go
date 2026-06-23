@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -40,8 +41,17 @@ func runApp(cmd *cobra.Command, args []string) error {
 	// All log.Printf calls will be silently discarded
 	log.SetOutput(io.Discard)
 
-	// Suppress klog output from Kubernetes client-go
-	// This prevents errors like "request.go:752" from appearing in the TUI
+	// Suppress klog output from Kubernetes client-go so reflector/watch
+	// errors don't paint over the TUI. LogToStderr(false) alone is not
+	// enough: klog still copies anything at or above stderrthreshold
+	// (default ERROR) straight to stderr, which is exactly the level the
+	// reflector "Failed to watch" errors use. Raise the threshold past
+	// FATAL via the klog flagset so nothing reaches stderr.
+	var klogFlags flag.FlagSet
+	klog.InitFlags(&klogFlags)
+	_ = klogFlags.Set("logtostderr", "false")
+	_ = klogFlags.Set("alsologtostderr", "false")
+	_ = klogFlags.Set("stderrthreshold", "FATAL")
 	klog.SetOutput(io.Discard)
 	klog.LogToStderr(false)
 
