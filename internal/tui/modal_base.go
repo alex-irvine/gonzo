@@ -32,7 +32,7 @@ func (m *DashboardModel) renderModalOverlay() string {
 	isLogDetailsModal := m.currentLogEntry != nil
 
 	if isLogDetailsModal {
-		return m.renderSplitModal()
+		return m.renderDetailModal()
 	} else {
 		return m.renderSingleModal()
 	}
@@ -90,23 +90,12 @@ func (m *DashboardModel) renderModalStatusBar() string {
 	var statusItems []string
 
 	if m.currentLogEntry != nil {
-		// Split modal help text
-		statusItems = append(statusItems, "Tab/Click: Switch panes (Details/Chat)")
-
-		if m.modalActiveSection == "chat" && m.chatActive {
-			statusItems = append(statusItems, "Enter: Send message", "ESC: Stop typing")
-		} else {
-			if m.aiClient != nil {
-				statusItems = append(statusItems, "i: AI Analysis")
-			}
-			// Add wrapping toggle for log details modal
-			if m.attributeWrappingEnabled {
-				statusItems = append(statusItems, "w: Disable wrapping")
-			} else {
-				statusItems = append(statusItems, "w: Enable wrapping")
-			}
-			statusItems = append(statusItems, "↑↓/Wheel: Scroll", "PgUp/PgDn: Page")
+		// Log details (JSON tree) help text
+		statusItems = append(statusItems, "↑↓: Move", "←/→/Enter: Collapse/Expand")
+		if m.aiClient != nil {
+			statusItems = append(statusItems, "i: AI Analysis")
 		}
+		statusItems = append(statusItems, "y: Yank entry", "Y: Yank node")
 	} else {
 		// Single modal help text (like Top Values modal)
 		statusItems = append(statusItems, "↑↓/Wheel: Scroll", "PgUp/PgDn: Page")
@@ -119,7 +108,14 @@ func (m *DashboardModel) renderModalStatusBar() string {
 	statusStyle := lipgloss.NewStyle().
 		Foreground(ColorGray)
 
-	return statusStyle.Render(strings.Join(statusItems, " • "))
+	bar := statusStyle.Render(strings.Join(statusItems, " • "))
+
+	// Surface transient yank feedback alongside the help text.
+	if m.yankFeedback != "" {
+		feedback := lipgloss.NewStyle().Foreground(ColorGreen).Bold(true).Render(m.yankFeedback)
+		bar = feedback + statusStyle.Render(" • ") + bar
+	}
+	return bar
 }
 
 // getSeverityColor returns the appropriate color for a severity level

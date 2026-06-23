@@ -5,7 +5,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -51,27 +50,10 @@ func (m *DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.updateCharts()
 		}
 
-		// Animate spinner when AI is analyzing (even when paused)
+		// Animate spinner when AI is analyzing (even when paused). The detail
+		// modal reads m.aiAnalyzing/m.aiSpinnerFrame directly when rendering.
 		if m.aiAnalyzing {
 			m.aiSpinnerFrame = (m.aiSpinnerFrame + 1) % 4
-			// Update modal content to show animated spinner
-			if m.currentLogEntry != nil {
-				m.modalContent = m.formatLogDetails(*m.currentLogEntry, 60)
-				m.modalReady = false // Force viewport update
-			}
-		}
-
-		// Animate chat spinner separately
-		if m.chatAiAnalyzing {
-			m.chatSpinnerFrame = (m.chatSpinnerFrame + 1) % 4
-			// Update the working message in chat history with new spinner
-			if len(m.chatHistory) > 0 {
-				lastIdx := len(m.chatHistory) - 1
-				// Check if the last message is a working indicator
-				if strings.HasPrefix(m.chatHistory[lastIdx], "AI:") && strings.Contains(m.chatHistory[lastIdx], "Working on it...") {
-					m.chatHistory[lastIdx] = fmt.Sprintf("AI: %s Working on it...", m.getChatSpinner())
-				}
-			}
 		}
 
 		// Continue periodic ticks
@@ -80,43 +62,13 @@ func (m *DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		})
 
 	case AIAnalysisMsg:
-		if msg.IsChat {
-			// Handle chat AI response
-			m.chatAiAnalyzing = false
-
-			// Remove the "Working on it..." message (should be the last one)
-			if len(m.chatHistory) > 0 {
-				lastIdx := len(m.chatHistory) - 1
-				if strings.HasPrefix(m.chatHistory[lastIdx], "AI:") && strings.Contains(m.chatHistory[lastIdx], "Working on it...") {
-					// Remove the working message
-					m.chatHistory = m.chatHistory[:lastIdx]
-				}
-			}
-
-			// Add the actual response
-			if msg.Error != nil {
-				m.chatHistory = append(m.chatHistory, fmt.Sprintf("AI: Error: %v", msg.Error))
-			} else {
-				m.chatHistory = append(m.chatHistory, fmt.Sprintf("AI: %s", msg.Result))
-			}
-			m.chatAutoScroll = true // Enable auto-scroll for new AI response
+		// AI analysis of the current log entry. The detail modal renders
+		// m.aiAnalysisResult directly.
+		m.aiAnalyzing = false
+		if msg.Error != nil {
+			m.aiAnalysisResult = fmt.Sprintf("Error: %v", msg.Error)
 		} else {
-			// Handle info section AI analysis
-			m.aiAnalyzing = false
-			if msg.Error != nil {
-				m.aiAnalysisResult = fmt.Sprintf("Error: %v", msg.Error)
-			} else {
-				m.aiAnalysisResult = msg.Result
-			}
-		}
-		// Update modal content with new analysis (only for non-chat responses)
-		if m.currentLogEntry != nil && !msg.IsChat {
-			m.modalContent = m.formatLogDetails(*m.currentLogEntry, 60)
-			m.modalReady = false // Reset viewport for new content
-		}
-		// If chat mode is active, refocus the input after analysis
-		if m.chatActive {
-			m.chatInput.Focus()
+			m.aiAnalysisResult = msg.Result
 		}
 		return m, nil
 	}
@@ -228,107 +180,21 @@ func (m *DashboardModel) handleModalMouseEvent(msg tea.MouseMsg) (tea.Model, tea
 	switch msg.Action {
 	case tea.MouseActionPress:
 		switch msg.Button {
-		case tea.MouseButtonLeft:
-			// Handle clicks to switch between modal sections
-			return m.handleModalClick(msg.X, msg.Y)
-
 		case tea.MouseButtonWheelUp:
-			// Priority: if chat is active, always scroll chat viewport
-			if m.chatActive {
-				if m.reverseScrollWheel {
-					m.chatViewport.ScrollDown(1)
-				} else {
-					m.chatViewport.ScrollUp(1)
-				}
-			} else if m.modalActiveSection == "info" {
-				if m.reverseScrollWheel {
-					m.infoViewport.ScrollDown(1)
-				} else {
-					m.infoViewport.ScrollUp(1)
-				}
-			} else if m.modalActiveSection == "chat" {
-				if m.reverseScrollWheel {
-					m.chatViewport.ScrollDown(1)
-				} else {
-					m.chatViewport.ScrollUp(1)
-				}
+			if m.reverseScrollWheel {
+				m.jsonCursorMove(1)
+			} else {
+				m.jsonCursorMove(-1)
 			}
 			return m, nil
 
 		case tea.MouseButtonWheelDown:
-			// Priority: if chat is active, always scroll chat viewport
-			if m.chatActive {
-				if m.reverseScrollWheel {
-					m.chatViewport.ScrollUp(1)
-				} else {
-					m.chatViewport.ScrollDown(1)
-				}
-			} else if m.modalActiveSection == "info" {
-				if m.reverseScrollWheel {
-					m.infoViewport.ScrollUp(1)
-				} else {
-					m.infoViewport.ScrollDown(1)
-				}
-			} else if m.modalActiveSection == "chat" {
-				if m.reverseScrollWheel {
-					m.chatViewport.ScrollUp(1)
-				} else {
-					m.chatViewport.ScrollDown(1)
-				}
+			if m.reverseScrollWheel {
+				m.jsonCursorMove(-1)
+			} else {
+				m.jsonCursorMove(1)
 			}
 			return m, nil
-		}
-	}
-
-	return m, nil
-}
-
-// handleModalClick processes mouse clicks within modals to switch sections
-func (m *DashboardModel) handleModalClick(x, _ int) (tea.Model, tea.Cmd) {
-	// Calculate modal layout to determine which section was clicked
-	// Based on renderSplitModal layout: 70% info, 30% chat
-
-	modalWidth := m.width - 8      // 4 chars margin on each side
-	contentWidth := modalWidth - 4 // Modal borders
-
-	// Split layout: 70% info, 30% chat
-	infoWidth := int(float64(contentWidth)*0.7) - 1 // -1 for separator
-
-	// Calculate section boundaries (relative to modal area)
-	// Modal is centered, so calculate offset
-	modalStartX := 4 // Left margin
-
-	// Check if click is in info section (left side) or chat section (right side)
-	relativeX := x - modalStartX
-
-	if relativeX >= 0 && relativeX < infoWidth {
-		// Clicked in info section
-		if m.modalActiveSection != "info" {
-			m.modalActiveSection = "info"
-			// Exit chat mode when switching away from chat
-			if m.chatActive {
-				m.chatActive = false
-				m.chatInput.Blur()
-			}
-		}
-	} else if relativeX >= infoWidth {
-		// Clicked in chat section
-		if m.modalActiveSection != "chat" {
-			m.modalActiveSection = "chat"
-			// Check if AI is configured before enabling chat
-			if !m.aiConfigured {
-				// Show error in chat area instead of enabling chat
-				chatError := fmt.Sprintf("AI Chat Not Available\n\nError: %s\n\nTo configure AI:\n• Set OPENAI_API_KEY environment variable\n• For local AI: Set OPENAI_API_BASE\n• Use --ai-model flag to specify model", m.aiErrorMessage)
-				m.chatHistory = []string{fmt.Sprintf("System: %s", chatError)}
-				m.chatAutoScroll = true // Enable auto-scroll for error message
-				return m, nil
-			}
-			// Automatically enter chat mode when clicking on chat section
-			if m.currentLogEntry != nil && m.aiClient != nil {
-				m.chatActive = true
-				m.chatInput.Focus()
-				return m, textarea.Blink
-			}
 		}
 	}
 

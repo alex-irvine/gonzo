@@ -76,6 +76,37 @@ func (m *DashboardModel) yankVisualSelection() {
 	m.visualMode = false
 }
 
+// yankCurrentLogFromModal copies the entry currently shown in the details modal
+// to the clipboard. Mirrors yankCurrentLog but sourced from currentLogEntry so
+// it works while the modal is open.
+func (m *DashboardModel) yankCurrentLogFromModal() {
+	if m.currentLogEntry == nil {
+		m.setYankFeedback("Nothing to yank")
+		return
+	}
+	text := yankableText(*m.currentLogEntry)
+	if err := clipboard.WriteAll(text); err != nil {
+		m.setYankFeedback(fmt.Sprintf("Yank failed: %v", err))
+		return
+	}
+	m.setYankFeedback("Yanked log entry")
+}
+
+// yankFocusedNode copies the focused JSON tree node (as indented JSON) to the
+// clipboard.
+func (m *DashboardModel) yankFocusedNode() {
+	text, ok := m.jsonFocusedYank()
+	if !ok {
+		m.setYankFeedback("Nothing to yank")
+		return
+	}
+	if err := clipboard.WriteAll(text); err != nil {
+		m.setYankFeedback(fmt.Sprintf("Yank failed: %v", err))
+		return
+	}
+	m.setYankFeedback("Yanked node")
+}
+
 // setYankFeedback stores a transient message and resets the tick counter that
 // will clear it on the next handful of dashboard updates.
 func (m *DashboardModel) setYankFeedback(msg string) {
