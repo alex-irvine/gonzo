@@ -264,7 +264,7 @@ When reverse scroll wheel is enabled:
 This affects all scrollable areas:
 - Main dashboard log navigation
 - All modal windows (log details, patterns, statistics, etc.)
-- Chat viewport scrolling
+- Log details JSON tree navigation
 - Model selection
 - Help screen
 

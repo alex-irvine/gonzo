@@ -30,6 +30,7 @@ type Config struct {
 	UpdateInterval      time.Duration `mapstructure:"update-interval"`
 	LogBuffer           int           `mapstructure:"log-buffer"`
 	TestMode            bool          `mapstructure:"test-mode"`
+	DemoLogs            bool          `mapstructure:"demo-logs"`
 	ConfigFile          string        `mapstructure:"config"`
 	AIProvider          string        `mapstructure:"ai-provider"`
 	AIModel             string        `mapstructure:"ai-model"`
@@ -160,6 +161,7 @@ func init() {
 	rootCmd.Flags().DurationP("update-interval", "u", 1*time.Second, "Dashboard update interval")
 	rootCmd.Flags().IntP("log-buffer", "b", 1000, "Maximum log buffer size")
 	rootCmd.Flags().BoolP("test-mode", "t", false, "Run in test mode (works without TTY)")
+	rootCmd.Flags().Bool("demo-logs", false, "Load a small set of built-in structured sample logs (for trying out the UI)")
 	rootCmd.Flags().BoolP("version", "v", false, "Print version information")
 	rootCmd.Flags().String("ai-provider", "", "AI provider to use: 'openai' (default, requires OPENAI_API_KEY), 'claude-code' (requires claude CLI)")
 	rootCmd.Flags().String("ai-model", "", "AI model to use for log analysis (auto-selects best available if not specified)")
@@ -191,6 +193,7 @@ func init() {
 	viper.BindPFlag("update-interval", rootCmd.Flags().Lookup("update-interval"))
 	viper.BindPFlag("log-buffer", rootCmd.Flags().Lookup("log-buffer"))
 	viper.BindPFlag("test-mode", rootCmd.Flags().Lookup("test-mode"))
+	viper.BindPFlag("demo-logs", rootCmd.Flags().Lookup("demo-logs"))
 	viper.BindPFlag("ai-provider", rootCmd.Flags().Lookup("ai-provider"))
 	viper.BindPFlag("ai-model", rootCmd.Flags().Lookup("ai-model"))
 	viper.BindPFlag("files", rootCmd.Flags().Lookup("file"))

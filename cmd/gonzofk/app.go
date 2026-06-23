@@ -3,6 +3,8 @@ package main
 import (
 	"bufio"
 	"context"
+	_ "embed"
+	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -28,6 +30,12 @@ import (
 	"k8s.io/klog/v2"
 )
 
+// demoLogs holds a small set of structured sample logs, embedded into the
+// binary so --demo-logs works from any working directory.
+//
+//go:embed demo_logs.json
+var demoLogs string
+
 // runApp initializes and runs the application
 func runApp(cmd *cobra.Command, args []string) error {
 	// Check if version flag was used
@@ -40,8 +48,17 @@ func runApp(cmd *cobra.Command, args []string) error {
 	// All log.Printf calls will be silently discarded
 	log.SetOutput(io.Discard)
 
-	// Suppress klog output from Kubernetes client-go
-	// This prevents errors like "request.go:752" from appearing in the TUI
+	// Suppress klog output from Kubernetes client-go so reflector/watch
+	// errors don't paint over the TUI. LogToStderr(false) alone is not
+	// enough: klog still copies anything at or above stderrthreshold
+	// (default ERROR) straight to stderr, which is exactly the level the
+	// reflector "Failed to watch" errors use. Raise the threshold past
+	// FATAL via the klog flagset so nothing reaches stderr.
+	var klogFlags flag.FlagSet
+	klog.InitFlags(&klogFlags)
+	_ = klogFlags.Set("logtostderr", "false")
+	_ = klogFlags.Set("alsologtostderr", "false")
+	_ = klogFlags.Set("stderrthreshold", "FATAL")
 	klog.SetOutput(io.Discard)
 	klog.LogToStderr(false)
 
@@ -181,6 +198,7 @@ type simpleTuiModel struct {
 	lastFreqReset  time.Time           // Track when frequency memory was last reset
 	timerSequence  int                 // Track timer sequence to avoid concurrent timers
 	hasStdinData   bool                // Whether stdin has data available
+	hasDemoInput   bool                // Whether we're streaming the embedded demo logs
 
 	// File reading support
 	fileReader   *filereader.FileReader // File reader for file input mode
@@ -288,8 +306,16 @@ func (m *simpleTuiModel) Init() tea.Cmd {
 		}
 	}
 
+	// Demo logs: stream the embedded structured sample. Takes priority over
+	// file/stdin so `gonzo --demo-logs` works with no other setup.
+	if !m.hasK8sInput && !m.hasVmlogsInput && !m.hasOTLPInput && cfg.DemoLogs {
+		m.hasDemoInput = true
+		m.inputChan = make(chan string, 100)
+		go m.streamDemoLogs()
+	}
+
 	// Check if we have file inputs specified (only if Kubernetes, Victoria Logs and OTLP are not enabled)
-	if !m.hasK8sInput && !m.hasVmlogsInput && !m.hasOTLPInput && len(cfg.Files) > 0 {
+	if !m.hasK8sInput && !m.hasVmlogsInput && !m.hasOTLPInput && !m.hasDemoInput && len(cfg.Files) > 0 {
 		// File input mode
 		m.hasFileInput = true
 		m.inputChan = make(chan string, 100)
@@ -307,8 +333,8 @@ func (m *simpleTuiModel) Init() tea.Cmd {
 		}
 	}
 
-	// If no Kubernetes, no Victoria Logs, no OTLP, no file input or file input failed, check stdin
-	if !m.hasK8sInput && !m.hasVmlogsInput && !m.hasOTLPInput && !m.hasFileInput {
+	// If no Kubernetes, no Victoria Logs, no OTLP, no demo, no file input or file input failed, check stdin
+	if !m.hasK8sInput && !m.hasVmlogsInput && !m.hasOTLPInput && !m.hasDemoInput && !m.hasFileInput {
 		// Check if stdin has data available (not a terminal)
 		stat, _ := os.Stdin.Stat()
 		if (stat.Mode() & os.ModeCharDevice) == 0 {
@@ -322,7 +348,7 @@ func (m *simpleTuiModel) Init() tea.Cmd {
 	}
 
 	// Auto-detect log source if nothing was explicitly configured
-	if !m.hasK8sInput && !m.hasVmlogsInput && !m.hasOTLPInput && !m.hasFileInput && !m.hasStdinData && !hasExplicitSourceFlag() {
+	if !m.hasK8sInput && !m.hasVmlogsInput && !m.hasOTLPInput && !m.hasDemoInput && !m.hasFileInput && !m.hasStdinData && !hasExplicitSourceFlag() {
 		m.autoDetectLogSource()
 	}
 
@@ -334,7 +360,7 @@ func (m *simpleTuiModel) Init() tea.Cmd {
 	cmds = append(cmds, m.periodicUpdate())
 
 	// Start checking for input data if we have any input source
-	if m.hasStdinData || m.hasFileInput || m.hasOTLPInput || m.hasVmlogsInput || m.hasK8sInput {
+	if m.hasStdinData || m.hasDemoInput || m.hasFileInput || m.hasOTLPInput || m.hasVmlogsInput || m.hasK8sInput {
 		cmds = append(cmds, m.checkInputChannel())
 	}
 
@@ -471,6 +497,25 @@ func (m *simpleTuiModel) readFilesAsync() {
 			}
 		}
 	}
+}
+
+// streamDemoLogs feeds the embedded demo logs into the input channel, then
+// keeps the channel open so the TUI stays interactive after the lines load.
+func (m *simpleTuiModel) streamDemoLogs() {
+	defer close(m.inputChan)
+	for _, line := range strings.Split(strings.TrimSpace(demoLogs), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		select {
+		case m.inputChan <- line:
+		case <-m.ctx.Done():
+			return
+		}
+	}
+	// Block until shutdown so the channel isn't seen as closed/EOF.
+	<-m.ctx.Done()
 }
 
 // readStdinAsync reads from stdin in a goroutine without blocking

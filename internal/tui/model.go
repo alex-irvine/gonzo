@@ -9,7 +9,6 @@ import (
 	"github.com/alex-irvine/gonzo/internal/memory"
 	versioncheck "github.com/alex-irvine/gonzo/internal/version"
 
-	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
@@ -149,7 +148,6 @@ type DashboardModel struct {
 	yankFeedbackTick  int
 
 	// Modal display options
-	attributeWrappingEnabled bool // Whether to wrap attribute values instead of truncating them
 
 	// Update interval management
 	availableIntervals []time.Duration
@@ -168,26 +166,20 @@ type DashboardModel struct {
 	aiModelName    string // The actual model being used
 	aiErrorMessage string // Error message if configuration failed
 
-	// Modal viewports for split layout
-	infoViewport viewport.Model // Left side: log details, attributes, AI analysis
-	chatViewport viewport.Model // Right side: chat history
+	// Modal viewport for log details
+	infoViewport viewport.Model // Log details / JSON tree
 	modalReady   bool
 
-	// Modal section navigation
-	modalActiveSection string // "info" or "chat"
+	// JSON tree state for the log details modal
+	jsonRoot     *jsonNode       // Parsed structured view of the current entry
+	jsonExpanded map[string]bool // path -> expanded (branches default expanded)
+	jsonCursor   int             // Index into jsonVisible
+	jsonVisible  []flatNode      // Flattened visible nodes (recomputed on expand/collapse)
 
 	// Model selection modal
 	showModelSelectionModal bool
 	selectedModelIndex      int
 	availableModelsList     []string
-
-	// Chat functionality
-	chatInput        textarea.Model
-	chatActive       bool
-	chatHistory      []string // Store chat history
-	chatAutoScroll   bool     // Whether to auto-scroll chat to bottom
-	chatAiAnalyzing  bool     // Whether chat AI is working (separate from info AI)
-	chatSpinnerFrame int      // Animation frame for chat spinner
 
 	// Column display
 	showColumns bool // Toggle Host and Service columns in log view
@@ -254,7 +246,6 @@ type UpdateIntervalMsg time.Duration
 type AIAnalysisMsg struct {
 	Result string
 	Error  error
-	IsChat bool // true for chat responses, false for initial analysis
 }
 
 // ManualResetMsg represents a manual reset request triggered by user
@@ -281,14 +272,6 @@ func NewDashboardModel(maxLogBuffer int, updateInterval time.Duration, aiProvide
 	searchInput := textinput.New()
 	searchInput.Placeholder = "Search and highlight text..."
 	searchInput.CharLimit = 200
-
-	chatInput := textarea.New()
-	chatInput.Prompt = "> "
-	chatInput.Placeholder = "Ask a follow-up question about this log..."
-	chatInput.CharLimit = 500 // Increased for multi-line
-	chatInput.SetHeight(3)    // Allow 3 lines of input
-	chatInput.MaxHeight = 6   // Max 6 lines before scrolling
-	chatInput.ShowLineNumbers = false
 
 	// Available update intervals
 	availableIntervals := []time.Duration{
@@ -318,7 +301,6 @@ func NewDashboardModel(maxLogBuffer int, updateInterval time.Duration, aiProvide
 		activeSection:       SectionLogs,
 		filterInput:         filterInput,
 		searchInput:         searchInput,
-		chatInput:           chatInput,
 		selectedIndex:       make(map[Section]int),
 		logEntries:          make([]LogEntry, 0, maxLogBuffer),
 		allLogEntries:       make([]LogEntry, 0, maxLogBuffer),
@@ -329,14 +311,10 @@ func NewDashboardModel(maxLogBuffer int, updateInterval time.Duration, aiProvide
 		availableIntervals:  availableIntervals,
 		currentIntervalIdx:  currentIdx,
 		infoViewport:        viewport.New(80, 20), // Will be resized later
-		chatViewport:        viewport.New(30, 20), // Will be resized later
-		modalActiveSection:  "info",               // Start with info section active
-		chatHistory:         make([]string, 0),
-		chatAutoScroll:      true,               // Enable auto-scroll for new messages
-		drain3Manager:       NewDrain3Manager(), // Initialize drain3 manager
-		drain3LastProcessed: 0,                  // Initialize drain3 tracking
-		logAutoScroll:       true,               // Start with auto-scroll enabled
-		showColumns:         true,               // Show Host/Service columns by default
+		drain3Manager:       NewDrain3Manager(),   // Initialize drain3 manager
+		drain3LastProcessed: 0,                    // Initialize drain3 tracking
+		logAutoScroll:       true,                 // Start with auto-scroll enabled
+		showColumns:         true,                 // Show Host/Service columns by default
 		// Initialize column customization
 		discoveredAttributes:     make(map[string]bool),
 		columnMaxWidths:          make(map[string]int),
@@ -344,9 +322,8 @@ func NewDashboardModel(maxLogBuffer int, updateInterval time.Duration, aiProvide
 		activeColumns:            getDefaultActiveColumns(),
 		availableColumns:         getDefaultAvailableColumns(),
 		columnConfigSelected:     0,
-		logViewHorizontalOffset:  0,     // Start with no horizontal scroll
-		instructionsScrollOffset: 0,     // Start at top of instructions
-		attributeWrappingEnabled: false, // Default to truncating (not wrapping)
+		logViewHorizontalOffset:  0, // Start with no horizontal scroll
+		instructionsScrollOffset: 0, // Start at top of instructions
 		// Initialize statistics tracking
 		statsStartTime:      time.Now(),
 		statsTotalBytes:     0,
@@ -426,11 +403,6 @@ func (m *DashboardModel) switchToModel(newModel string) (tea.Model, tea.Cmd) {
 
 	// Close the model selection modal
 	m.showModelSelectionModal = false
-
-	// Update any existing AI analysis result to show the new model
-	if m.currentLogEntry != nil {
-		m.modalContent = m.formatLogDetails(*m.currentLogEntry, 60)
-	}
 
 	return m, nil
 }
@@ -588,7 +560,6 @@ func (m *DashboardModel) toggleColumnsMode() {
 // Init initializes the model
 func (m *DashboardModel) Init() tea.Cmd {
 	var cmds []tea.Cmd
-	cmds = append(cmds, textarea.Blink)
 
 	// Enable mouse support
 	cmds = append(cmds, func() tea.Msg { return tea.EnableMouseCellMotion() })
@@ -610,12 +581,6 @@ func (m *DashboardModel) GetCountsHistory() []SeverityCounts {
 func (m *DashboardModel) getSpinner() string {
 	spinners := []string{"⠋", "⠙", "⠹", "⠸"}
 	return spinners[m.aiSpinnerFrame]
-}
-
-// getChatSpinner returns an animated spinner character for chat
-func (m *DashboardModel) getChatSpinner() string {
-	spinners := []string{"⠋", "⠙", "⠹", "⠸"}
-	return spinners[m.chatSpinnerFrame]
 }
 
 // getDefaultActiveColumns returns the default columns that are shown initially

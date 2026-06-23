@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"regexp"
 
-	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -126,75 +125,6 @@ func (m *DashboardModel) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	}
 
-	// SECOND PRIORITY: Handle chat input if active - bypass ALL other shortcuts
-	if m.showModal && m.chatActive {
-		switch msg.String() {
-		case "tab":
-			// Tab exits chat mode and switches to info section
-			m.chatActive = false
-			m.chatInput.Blur()
-			m.modalActiveSection = "info"
-			return m, nil
-		case "escape", "esc":
-			m.chatActive = false
-			m.chatInput.Blur()
-			m.chatInput.SetValue("")
-			return m, nil
-		case "enter":
-			if m.chatInput.Value() != "" && m.currentLogEntry != nil && m.aiClient != nil {
-				question := m.chatInput.Value()
-				m.chatHistory = append(m.chatHistory, fmt.Sprintf("You: %s", question))
-
-				// Add working indicator to chat history
-				m.chatHistory = append(m.chatHistory, fmt.Sprintf("AI: %s Working on it...", m.getChatSpinner()))
-				m.chatAutoScroll = true // Enable auto-scroll for new messages
-
-				m.chatInput.SetValue("")
-				// Keep chat mode active and focused after sending
-				m.chatInput.Focus()
-				m.chatAiAnalyzing = true // Use chat-specific AI flag
-
-				// Continue conversation with context
-				return m, func() tea.Msg {
-					result, err := m.aiClient.AnalyzeLogWithContext(
-						m.currentLogEntry.Message,
-						m.currentLogEntry.Severity,
-						m.currentLogEntry.Timestamp.Format("2006-01-02 15:04:05.000"),
-						m.currentLogEntry.Attributes,
-						m.aiAnalysisResult,
-						question,
-					)
-					return AIAnalysisMsg{Result: result, Error: err, IsChat: true}
-				}
-			}
-			return m, nil
-		case "ctrl+c":
-			// Allow ctrl+c to quit even in chat mode
-			return m, tea.Quit
-		case "up":
-			// Allow scrolling in chat viewport when in chat mode
-			m.chatViewport.ScrollUp(1)
-			return m, nil
-		case "down":
-			// Allow scrolling in chat viewport when in chat mode
-			m.chatViewport.ScrollDown(1)
-			return m, nil
-		case "pgup":
-			// Allow page scrolling in chat viewport when in chat mode
-			m.chatViewport.HalfPageUp()
-			return m, nil
-		case "pgdown":
-			// Allow page scrolling in chat viewport when in chat mode
-			m.chatViewport.HalfPageDown()
-			return m, nil
-		default:
-			// ALL other keys go to the text input - no shortcuts processed at all
-			var cmd tea.Cmd
-			m.chatInput, cmd = m.chatInput.Update(msg)
-			return m, cmd
-		}
-	}
-
 	// Critical keys that always work
 	switch msg.String() {
 	case "ctrl+c":
@@ -256,7 +186,6 @@ func (m *DashboardModel) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.modalContent = ""
 			// Reset viewport scroll position for next modal
 			m.infoViewport.GotoTop()
-			m.chatViewport.GotoTop()
 			// Don't unpause if we're still in the log section
 			// User needs to tab out to resume updates
 			return m, nil
@@ -739,10 +668,10 @@ func (m *DashboardModel) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			if m.selectedLogIndex >= 0 && m.selectedLogIndex < len(m.logEntries) {
 				entry := m.logEntries[m.selectedLogIndex]
 				m.currentLogEntry = &entry
-				m.modalContent = m.formatLogDetails(entry, 60)
+				m.buildJSONTree(entry)
+				m.infoViewport.GotoTop()
 				m.showModal = true
 				m.modalReady = false
-				m.modalActiveSection = "info"
 				// Close log viewer modal when opening details
 				m.showLogViewerModal = false
 			}
@@ -1049,103 +978,67 @@ func (m *DashboardModel) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	// Modal view shortcuts (chat mode handled above at function start)
+	// Modal view shortcuts
 	if m.showModal {
-		// Check if this is a log details modal (split layout) or single modal
-
+		// Log details modal (JSON tree) vs single modal
 		if m.currentLogEntry != nil {
-			// Handle split modal navigation and scrolling
 			switch msg.String() {
-			case "tab":
-				// Always allow tab navigation between panes
-				// Switch between info and chat sections in modal
-				if m.modalActiveSection == "info" {
-					m.modalActiveSection = "chat"
-					// Check if AI is configured before enabling chat
-					if !m.aiConfigured {
-						// Show error in chat area instead of enabling chat
-						chatError := fmt.Sprintf("AI Chat Not Available\n\nError: %s\n\nTo configure AI:\n• Set OPENAI_API_KEY environment variable\n• For local AI: Set OPENAI_API_BASE\n• Use --ai-model flag to specify model", m.aiErrorMessage)
-						m.chatHistory = []string{fmt.Sprintf("System: %s", chatError)}
-						m.chatAutoScroll = true // Enable auto-scroll for error message
-						return m, nil
-					}
-					// Automatically enter chat mode when switching to chat pane
-					if m.currentLogEntry != nil && m.aiClient != nil {
-						m.chatActive = true
-						m.chatInput.Focus()
-						return m, textarea.Blink
-					}
-				} else {
-					m.modalActiveSection = "info"
-					// Exit chat mode when switching away from chat pane
-					if m.chatActive {
-						m.chatActive = false
-						m.chatInput.Blur()
-					}
-				}
-				return m, nil
 			case "up", "k":
-				// Handle scrolling based on active section
-				if m.modalActiveSection == "info" {
-					m.infoViewport.ScrollUp(1)
-					return m, nil
-				} else if m.modalActiveSection == "chat" {
-					// Always allow scrolling in chat section (single-line input doesn't use up/down)
-					m.chatViewport.ScrollUp(1)
-					return m, nil
-				}
+				m.jsonCursorMove(-1)
+				return m, nil
 			case "down", "j":
-				// Handle scrolling based on active section
-				if m.modalActiveSection == "info" {
-					m.infoViewport.ScrollDown(1)
-					return m, nil
-				} else if m.modalActiveSection == "chat" {
-					// Always allow scrolling in chat section (single-line input doesn't use up/down)
-					m.chatViewport.ScrollDown(1)
-					return m, nil
-				}
+				m.jsonCursorMove(1)
+				return m, nil
+			case "enter", " ":
+				m.jsonToggle()
+				return m, nil
+			case "right", "l":
+				m.jsonExpand()
+				return m, nil
+			case "left", "h":
+				m.jsonCollapse()
+				return m, nil
 			case "pgup":
-				// Handle page navigation based on active section
-				if m.modalActiveSection == "info" {
-					m.infoViewport.HalfPageUp()
-				} else if m.modalActiveSection == "chat" {
-					m.chatViewport.HalfPageUp()
-				}
+				m.jsonCursorMove(-10)
 				return m, nil
 			case "pgdown":
-				// Handle page navigation based on active section
-				if m.modalActiveSection == "info" {
-					m.infoViewport.HalfPageDown()
-				} else if m.modalActiveSection == "chat" {
-					m.chatViewport.HalfPageDown()
-				}
+				m.jsonCursorMove(10)
+				return m, nil
+			case "home":
+				m.jsonCursorMove(-len(m.jsonVisible))
+				return m, nil
+			case "end":
+				m.jsonCursorMove(len(m.jsonVisible))
+				return m, nil
+			case "y":
+				// Yank the whole entry (matches the main log list).
+				m.yankCurrentLogFromModal()
+				return m, nil
+			case "Y":
+				// Yank the focused node as indented JSON.
+				m.yankFocusedNode()
 				return m, nil
 			case "i":
-				// Only handle AI analysis if not actively typing in chat
-				if !m.chatActive || m.modalActiveSection == "info" {
-					// AI analysis only available when viewing log details and AI client is available
-					if m.currentLogEntry != nil && m.aiClient != nil && !m.aiAnalyzing {
-						m.aiAnalyzing = true
-						m.aiAnalysisResult = "Analyzing..."
-
-						// Start AI analysis in background
-						return m, func() tea.Msg {
-							result, err := m.aiClient.AnalyzeLog(
-								m.currentLogEntry.Message,
-								m.currentLogEntry.Severity,
-								m.currentLogEntry.Timestamp.Format("2006-01-02 15:04:05.000"),
-								m.currentLogEntry.Attributes,
-							)
-							return AIAnalysisMsg{Result: result, Error: err, IsChat: false}
-						}
+				// AI analysis of the current entry.
+				if m.aiClient != nil && !m.aiAnalyzing {
+					m.aiAnalyzing = true
+					m.aiAnalysisResult = "Analyzing..."
+					return m, func() tea.Msg {
+						result, err := m.aiClient.AnalyzeLog(
+							m.currentLogEntry.Message,
+							m.currentLogEntry.Severity,
+							m.currentLogEntry.Timestamp.Format("2006-01-02 15:04:05.000"),
+							m.currentLogEntry.Attributes,
+						)
+						return AIAnalysisMsg{Result: result, Error: err}
 					}
 				}
+				return m, nil
 			case "m":
-				// Model selection modal - only when not in chat mode
-				if !m.chatActive && m.aiClient != nil && len(m.availableModelsList) > 0 {
+				// Model selection modal.
+				if m.aiClient != nil && len(m.availableModelsList) > 0 {
 					m.showModelSelectionModal = true
 					m.selectedModelIndex = 0
-					// Find current model in the list to pre-select it
 					for i, model := range m.availableModelsList {
 						if model == m.aiModelName {
 							m.selectedModelIndex = i
@@ -1154,39 +1047,18 @@ func (m *DashboardModel) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					}
 					return m, nil
 				}
-			case "w":
-				// Toggle attribute wrapping - only when not in chat mode
-				if !m.chatActive {
-					m.attributeWrappingEnabled = !m.attributeWrappingEnabled
-					// Refresh the modal content with new wrapping setting
-					if m.currentLogEntry != nil {
-						m.modalContent = m.formatLogDetails(*m.currentLogEntry, 60)
-					}
-					return m, nil
-				}
-			case "escape", "esc": // escape to close modal (only if not in chat mode)
+				return m, nil
+			case "escape", "esc":
 				m.showModal = false
 				m.modalContent = ""
-				m.currentLogEntry = nil // Clear current log entry when closing modal
-				// Reset viewport scroll position for next modal
+				m.currentLogEntry = nil
 				m.infoViewport.GotoTop()
-				m.chatViewport.GotoTop()
 				m.aiAnalysisResult = ""
-				m.chatHistory = []string{}
-				m.chatActive = false
-				m.chatAiAnalyzing = false // Reset chat AI state
-				m.chatInput.SetValue("")
+				m.jsonRoot = nil
+				m.jsonVisible = nil
 				return m, nil
 			}
-
-			// Update active viewport with scroll messages
-			var cmd tea.Cmd
-			if m.modalActiveSection == "info" {
-				m.infoViewport, cmd = m.infoViewport.Update(msg)
-			} else {
-				m.chatViewport, cmd = m.chatViewport.Update(msg)
-			}
-			return m, cmd
+			return m, nil
 		} else {
 			// Handle single modal scrolling and shortcuts
 			switch msg.String() {
@@ -1201,14 +1073,6 @@ func (m *DashboardModel) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				return m, nil
 			case "pgdown":
 				m.infoViewport.HalfPageDown()
-				return m, nil
-			case "w":
-				// Toggle attribute wrapping
-				m.attributeWrappingEnabled = !m.attributeWrappingEnabled
-				// Refresh the modal content with new wrapping setting
-				if m.currentLogEntry != nil {
-					m.modalContent = m.formatLogDetails(*m.currentLogEntry, 60)
-				}
 				return m, nil
 			case "escape", "esc":
 				m.showModal = false
@@ -1322,12 +1186,10 @@ func (m *DashboardModel) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			if m.selectedLogIndex >= 0 && m.selectedLogIndex < len(m.logEntries) {
 				entry := m.logEntries[m.selectedLogIndex]
 				m.currentLogEntry = &entry
-				m.modalContent = m.formatLogDetails(entry, 60)
+				m.buildJSONTree(entry)
 				m.showModal = true
 				m.modalReady = false // Reset viewport
-				// Explicitly reset viewport scroll position
 				m.infoViewport.GotoTop()
-				m.chatViewport.GotoTop()
 
 				// Clear any previous AI analysis result - user must press 'i' to analyze
 				m.aiAnalysisResult = ""
@@ -1482,15 +1344,11 @@ func (m *DashboardModel) showDetails() (tea.Model, tea.Cmd) {
 		if m.selectedLogIndex >= 0 && m.selectedLogIndex < len(m.logEntries) {
 			entry := m.logEntries[m.selectedLogIndex]
 			m.currentLogEntry = &entry // Store current log entry for AI analysis
-			m.modalContent = m.formatLogDetails(entry, 60)
+			m.buildJSONTree(entry)
 			m.showModal = true
 			m.modalReady = false // Reset viewport
-			// Explicitly reset viewport scroll position
 			m.infoViewport.GotoTop()
-			m.chatViewport.GotoTop()
-			m.aiAnalysisResult = ""    // Clear previous analysis
-			m.chatHistory = []string{} // Clear chat history
-			m.chatAiAnalyzing = false  // Reset chat AI state
+			m.aiAnalysisResult = "" // Clear previous analysis
 		}
 		return m, nil
 	}

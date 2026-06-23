@@ -7,8 +7,9 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// renderSplitModal renders log details modal with proper Bubbles split layout
-func (m *DashboardModel) renderSplitModal() string {
+// renderDetailModal renders the log details modal as a single full-width pane
+// containing a small header and a collapsible JSON tree of the entry.
+func (m *DashboardModel) renderDetailModal() string {
 	// Calculate dimensions
 	modalWidth := m.width - 8   // 4 chars margin on each side
 	modalHeight := m.height - 6 // 3 lines margin top and bottom
@@ -17,131 +18,49 @@ func (m *DashboardModel) renderSplitModal() string {
 	contentWidth := modalWidth - 4   // Modal borders
 	contentHeight := modalHeight - 6 // Header + status
 
-	// Split layout: 70% info, 30% chat
-	infoWidth := int(float64(contentWidth)*0.7) - 1 // -1 for separator
-	chatWidth := contentWidth - infoWidth - 1
-
-	// Update viewport sizes
-	m.infoViewport.Width = infoWidth
-	m.infoViewport.Height = contentHeight
-	m.chatViewport.Width = chatWidth
-	m.chatViewport.Height = contentHeight
-
-	// Update content with proper text wrapping
-	if m.currentLogEntry != nil {
-		// Account for minimal border padding (viewport handles most of its own spacing)
-		contentAreaWidth := infoWidth - 2
-		if contentAreaWidth < 10 {
-			contentAreaWidth = 10
-		}
-		infoContent := m.formatLogDetails(*m.currentLogEntry, contentAreaWidth)
-		wrappedInfoContent := m.wrapTextToWidth(infoContent, contentAreaWidth)
-		m.infoViewport.SetContent(wrappedInfoContent)
+	// Content area inside the pane border.
+	contentAreaWidth := contentWidth - 2
+	if contentAreaWidth < 10 {
+		contentAreaWidth = 10
 	}
 
-	// Prepare chat content with proper text wrapping
-	var chatContent strings.Builder
+	// Header: timestamps + severity.
+	headerBlock := m.renderDetailHeader(*m.currentLogEntry)
+	headerLines := strings.Count(headerBlock, "\n") + 1
 
-	// Show chat history with proper colors
-	if len(m.chatHistory) > 0 {
-		for i, msg := range m.chatHistory {
-			if i > 0 {
-				chatContent.WriteString("\n")
-			}
-
-			// Apply colors and wrap text to viewport width
-			var styledMsg string
-			// Account for viewport's internal rendering - use most of the width
-			msgWidth := chatWidth - 2 // Minimal padding for clean display
-
-			if strings.HasPrefix(msg, "You:") {
-				// User messages in light gray
-				userStyle := lipgloss.NewStyle().Foreground(ColorGray)
-				wrappedMsg := m.wrapTextToWidth(msg, msgWidth)
-				styledMsg = userStyle.Render(wrappedMsg)
-			} else {
-				// AI messages in blue
-				aiStyle := lipgloss.NewStyle().Foreground(ColorBlue)
-				wrappedMsg := m.wrapTextToWidth(msg, msgWidth)
-				styledMsg = aiStyle.Render(wrappedMsg)
-			}
-
-			chatContent.WriteString(styledMsg)
-		}
+	treeHeight := contentHeight - headerLines - 1 // -1 for the blank separator line
+	if treeHeight < 1 {
+		treeHeight = 1
 	}
 
-	// Add chat input section
-	if len(m.chatHistory) > 0 {
-		chatContent.WriteString("\n\n")
-	}
+	// Render the JSON tree and keep the cursor visible in the viewport.
+	treeContent, cursorLine := m.renderJSONTree(contentAreaWidth)
 
-	// Show chat input or prompt text
-	if m.modalActiveSection == "chat" && m.chatActive {
-		chatContent.WriteString(m.chatInput.View())
-	} else {
-		// Wrap prompt text to viewport width
-		msgWidth := chatWidth - 2
-		if len(m.chatHistory) == 0 {
-			promptText := m.wrapTextToWidth("No chat yet.\nTab here to start chatting", msgWidth)
-			chatContent.WriteString(promptText)
-		} else {
-			promptText := m.wrapTextToWidth("Tab here to continue chatting", msgWidth)
-			chatContent.WriteString(promptText)
-		}
-	}
+	m.infoViewport.Width = contentAreaWidth
+	m.infoViewport.Height = treeHeight
+	m.infoViewport.SetContent(treeContent)
+	m.ensureCursorVisible(cursorLine, treeHeight)
 
-	// Set pre-wrapped content to viewport (no double-wrapping)
-	m.chatViewport.SetContent(chatContent.String())
+	body := lipgloss.JoinVertical(lipgloss.Left, headerBlock, "", m.infoViewport.View())
 
-	// Only auto-scroll to bottom when flagged (new content added)
-	if m.chatAutoScroll {
-		m.chatViewport.GotoBottom()
-		m.chatAutoScroll = false // Reset flag after auto-scrolling
-	}
-
-	// Create side-by-side layout using lipgloss
-	infoPane := lipgloss.NewStyle().
-		Width(infoWidth).
+	// Pane with border.
+	pane := lipgloss.NewStyle().
+		Width(contentWidth).
 		Height(contentHeight).
 		Border(lipgloss.NormalBorder()).
-		BorderForeground(func() lipgloss.Color {
-			if m.modalActiveSection == "info" {
-				return ColorBlue
-			}
-			return ColorGray
-		}()).
-		Render(m.infoViewport.View())
+		BorderForeground(ColorBlue).
+		Render(body)
 
-	chatPane := lipgloss.NewStyle().
-		Width(chatWidth).
-		Height(contentHeight).
-		Border(lipgloss.NormalBorder()).
-		BorderForeground(func() lipgloss.Color {
-			if m.modalActiveSection == "chat" {
-				return ColorBlue
-			}
-			return ColorGray
-		}()).
-		Render(m.chatViewport.View())
-
-	// Combine panes horizontally
-	content := lipgloss.JoinHorizontal(lipgloss.Top, infoPane, chatPane)
-
-	// Add header with AI status
-	headerTitle := "Log Detail Modal"
+	// Header bar with AI status on the right.
+	headerTitle := "Log Details"
 	var aiStatus string
 	if m.aiConfigured {
 		aiStatus = fmt.Sprintf("%s: %s", m.aiServiceName, m.aiModelName)
 	} else {
-		aiStatus = "AI Not Available: Config Error"
+		aiStatus = "AI Not Available"
 	}
 
-	// Create header with title on left and AI status on right
-	headerLeft := lipgloss.NewStyle().
-		Foreground(ColorBlue).
-		Bold(true).
-		Render(headerTitle)
-
+	headerLeft := lipgloss.NewStyle().Foreground(ColorBlue).Bold(true).Render(headerTitle)
 	headerRight := lipgloss.NewStyle().
 		Foreground(func() lipgloss.Color {
 			if m.aiConfigured {
@@ -151,52 +70,20 @@ func (m *DashboardModel) renderSplitModal() string {
 		}()).
 		Render(aiStatus)
 
-	// Calculate spacing between left and right
 	headerSpacing := contentWidth - len(headerTitle) - len(aiStatus)
 	if headerSpacing < 1 {
 		headerSpacing = 1
 	}
-
-	header := lipgloss.JoinHorizontal(lipgloss.Top,
+	headerBar := lipgloss.JoinHorizontal(lipgloss.Top,
 		headerLeft,
 		strings.Repeat(" ", headerSpacing),
 		headerRight,
 	)
 
-	// Add tab indicators
-	infoTab := "Details"
-	chatTab := "Chat"
-	if m.modalActiveSection == "info" {
-		infoTab = "► " + infoTab
-		chatTab = "  " + chatTab
-	} else {
-		infoTab = "  " + infoTab
-		chatTab = "► " + chatTab
-	}
-
-	tabs := lipgloss.JoinHorizontal(lipgloss.Left,
-		lipgloss.NewStyle().Foreground(func() lipgloss.Color {
-			if m.modalActiveSection == "info" {
-				return ColorGreen
-			}
-			return ColorGray
-		}()).Render(infoTab),
-		strings.Repeat(" ", contentWidth-len(infoTab)-len(chatTab)),
-		lipgloss.NewStyle().Foreground(func() lipgloss.Color {
-			if m.modalActiveSection == "chat" {
-				return ColorGreen
-			}
-			return ColorGray
-		}()).Render(chatTab),
-	)
-
-	// Status bar
 	statusBar := m.renderModalStatusBar()
 
-	// Combine all parts
-	modal := lipgloss.JoinVertical(lipgloss.Left, header, tabs, content, statusBar)
+	modal := lipgloss.JoinVertical(lipgloss.Left, headerBar, pane, statusBar)
 
-	// Add outer border and center
 	finalModal := lipgloss.NewStyle().
 		Width(modalWidth).
 		Height(modalHeight).
@@ -205,4 +92,45 @@ func (m *DashboardModel) renderSplitModal() string {
 		Render(modal)
 
 	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, finalModal)
+}
+
+// renderDetailHeader renders the fixed header block (timestamps, severity) shown
+// above the JSON tree.
+func (m *DashboardModel) renderDetailHeader(entry LogEntry) string {
+	labelStyle := lipgloss.NewStyle().Foreground(ColorGray).Width(10)
+	valueStyle := lipgloss.NewStyle().Foreground(ColorWhite)
+
+	severityStyle := lipgloss.NewStyle().Bold(true).Foreground(getSeverityColor(normalizeSeverityLevel(entry.Severity)))
+
+	var b strings.Builder
+	b.WriteString(labelStyle.Render("Received:") + " " +
+		valueStyle.Render(entry.Timestamp.Format("2006-01-02 15:04:05.000")))
+	if !entry.OrigTimestamp.IsZero() {
+		b.WriteString("\n" + labelStyle.Render("Log Time:") + " " +
+			valueStyle.Render(entry.OrigTimestamp.Format("2006-01-02 15:04:05.000")))
+	}
+	b.WriteString("\n" + labelStyle.Render("Severity:") + " " + severityStyle.Render(entry.Severity))
+
+	// Surface AI analysis inline when present.
+	if m.aiAnalyzing {
+		spinner := fmt.Sprintf("%s Analyzing...", m.getSpinner())
+		b.WriteString("\n" + labelStyle.Render("AI:") + " " +
+			lipgloss.NewStyle().Foreground(ColorYellow).Render(spinner))
+	} else if m.aiAnalysisResult != "" && m.aiAnalysisResult != "Analyzing..." {
+		b.WriteString("\n" + labelStyle.Render("AI:") + " " +
+			valueStyle.Render(m.aiAnalysisResult))
+	}
+
+	return b.String()
+}
+
+// ensureCursorVisible scrolls infoViewport so the given cursor line stays within
+// the visible window of the given height.
+func (m *DashboardModel) ensureCursorVisible(cursorLine, height int) {
+	offset := m.infoViewport.YOffset
+	if cursorLine < offset {
+		m.infoViewport.SetYOffset(cursorLine)
+	} else if cursorLine >= offset+height {
+		m.infoViewport.SetYOffset(cursorLine - height + 1)
+	}
 }

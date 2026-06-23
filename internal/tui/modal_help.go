@@ -102,6 +102,16 @@ YANK / VISUAL SELECT (vim-style):
   y              - In visual mode, yank the selected range and exit visual
   Escape         - Exit visual mode without yanking
 
+LOG DETAILS (JSON tree):
+  ↑/↓ or k/j     - Move between fields
+  Enter / Space  - Expand or collapse the focused field
+  →/l            - Expand focused field
+  ←/h            - Collapse focused field (or jump to parent)
+  y              - Yank the whole entry to clipboard
+  Y              - Yank the focused field (as JSON) to clipboard
+  i              - AI analysis of the entry
+  Escape         - Close the details modal
+
 SECTIONS:
   Words          - Most frequent words in logs
   Attributes     - OTLP attributes by unique value count
