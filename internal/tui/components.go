@@ -120,11 +120,12 @@ func (m *DashboardModel) renderStatusLine() string {
 	// Build right section (status info and branding)
 	var statusInfo string
 
-	// Check for version updates (only if version checker is enabled)
+	// Show the current build version (only if version checker is enabled).
+	// The remote "update available" check was removed; see internal/version.
 	var versionUpdateInfo string
-	if m.versionChecker != nil {
-		if updateInfo := m.versionChecker.GetUpdateInfoNonBlocking(); updateInfo != nil && updateInfo.UpdateAvailable {
-			versionUpdateInfo = fmt.Sprintf("🔄 v%s available", updateInfo.LatestVersion)
+	if m.versionChecker != nil && !veryNarrow {
+		if v := m.versionChecker.GetCurrentVersion(); v != "" && v != "dev" {
+			versionUpdateInfo = fmt.Sprintf("v%s", v)
 		}
 	}
 
