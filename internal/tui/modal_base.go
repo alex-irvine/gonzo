@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -91,11 +92,15 @@ func (m *DashboardModel) renderModalStatusBar() string {
 
 	if m.currentLogEntry != nil {
 		// Log details (JSON tree) help text
-		statusItems = append(statusItems, "↑↓: Move", "←/→/Enter: Collapse/Expand")
+		statusItems = append(statusItems, "↑↓: Move", "Enter: Toggle", "h/l: Collapse/Expand", "w: Wrap/Scroll")
+		if m.jsonLineMode == jsonLineModeScroll {
+			statusItems = append(statusItems, fmt.Sprintf("←/→: Pan (%d)", m.jsonHorizontalOffset))
+		}
 		if m.aiClient != nil {
 			statusItems = append(statusItems, "i: AI Analysis")
 		}
 		statusItems = append(statusItems, "y: Yank entry", "Y: Yank node")
+		statusItems = append(statusItems, "Mode: "+m.jsonLineModeLabel())
 	} else {
 		// Single modal help text (like Top Values modal)
 		statusItems = append(statusItems, "↑↓/Wheel: Scroll", "PgUp/PgDn: Page")

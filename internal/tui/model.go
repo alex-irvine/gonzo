@@ -171,10 +171,12 @@ type DashboardModel struct {
 	modalReady   bool
 
 	// JSON tree state for the log details modal
-	jsonRoot     *jsonNode       // Parsed structured view of the current entry
-	jsonExpanded map[string]bool // path -> expanded (branches default expanded)
-	jsonCursor   int             // Index into jsonVisible
-	jsonVisible  []flatNode      // Flattened visible nodes (recomputed on expand/collapse)
+	jsonRoot             *jsonNode       // Parsed structured view of the current entry
+	jsonExpanded         map[string]bool // path -> expanded (branches default expanded)
+	jsonCursor           int             // Index into jsonVisible
+	jsonVisible          []flatNode      // Flattened visible nodes (recomputed on expand/collapse)
+	jsonLineMode         jsonLineMode    // Wrap or horizontal scroll rendering in details tree
+	jsonHorizontalOffset int             // Horizontal offset used in scroll mode
 
 	// Model selection modal
 	showModelSelectionModal bool
@@ -311,6 +313,7 @@ func NewDashboardModel(maxLogBuffer int, updateInterval time.Duration, aiProvide
 		availableIntervals:  availableIntervals,
 		currentIntervalIdx:  currentIdx,
 		infoViewport:        viewport.New(80, 20), // Will be resized later
+		jsonLineMode:        jsonLineModeWrap,
 		drain3Manager:       NewDrain3Manager(),   // Initialize drain3 manager
 		drain3LastProcessed: 0,                    // Initialize drain3 tracking
 		logAutoScroll:       true,                 // Start with auto-scroll enabled

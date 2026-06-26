@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 )
 
 // jsonKind classifies a node in the parsed JSON tree.
@@ -20,6 +21,13 @@ const (
 	kindNumber
 	kindBool
 	kindNull
+)
+
+type jsonLineMode int
+
+const (
+	jsonLineModeWrap jsonLineMode = iota
+	jsonLineModeScroll
 )
 
 // jsonNode is one node in the structured log tree. Branches (object/array)
@@ -173,7 +181,41 @@ func (m *DashboardModel) buildJSONTree(entry LogEntry) {
 	}
 	m.jsonExpanded = make(map[string]bool)
 	m.jsonCursor = 0
+	m.jsonHorizontalOffset = 0
 	m.jsonVisible = flattenVisible(m.jsonRoot, m.jsonExpanded)
+}
+
+func (m *DashboardModel) jsonToggleLineMode() {
+	if m.jsonLineMode == jsonLineModeWrap {
+		m.jsonLineMode = jsonLineModeScroll
+		return
+	}
+	m.jsonLineMode = jsonLineModeWrap
+	m.jsonHorizontalOffset = 0
+}
+
+func (m *DashboardModel) jsonScrollLeft(cols int) {
+	if cols < 1 {
+		cols = 1
+	}
+	m.jsonHorizontalOffset -= cols
+	if m.jsonHorizontalOffset < 0 {
+		m.jsonHorizontalOffset = 0
+	}
+}
+
+func (m *DashboardModel) jsonScrollRight(cols int) {
+	if cols < 1 {
+		cols = 1
+	}
+	m.jsonHorizontalOffset += cols
+}
+
+func (m *DashboardModel) jsonLineModeLabel() string {
+	if m.jsonLineMode == jsonLineModeScroll {
+		return "Scroll"
+	}
+	return "Wrap"
 }
 
 func (m *DashboardModel) jsonReflatten() {
@@ -248,10 +290,8 @@ func (m *DashboardModel) jsonCollapse() {
 	}
 }
 
-// renderJSONTree renders the visible tree to a string (one line per node) and
-// returns it along with the cursor's line index so the caller can keep it in
-// view. width bounds each line so wrapping never breaks the 1-line-per-node
-// invariant.
+// renderJSONTree renders the visible tree to a string and returns it along with
+// the cursor's line index so the caller can keep it in view.
 func (m *DashboardModel) renderJSONTree(width int) (string, int) {
 	if m.jsonRoot == nil || len(m.jsonVisible) == 0 {
 		return lipgloss.NewStyle().Foreground(ColorGray).Italic(true).Render("No structured data"), 0
@@ -268,8 +308,9 @@ func (m *DashboardModel) renderJSONTree(width int) (string, int) {
 	punctStyle := lipgloss.NewStyle().Foreground(ColorGray)
 	cursorStyle := lipgloss.NewStyle().Background(ColorDarkGray).Width(width)
 
-	var b strings.Builder
-	for i, fn := range m.jsonVisible {
+	lines := make([]string, 0, len(m.jsonVisible))
+	lineWidths := make([]int, 0, len(m.jsonVisible))
+	for _, fn := range m.jsonVisible {
 		n := fn.node
 		indent := strings.Repeat("  ", fn.depth)
 
@@ -306,16 +347,58 @@ func (m *DashboardModel) renderJSONTree(width int) (string, int) {
 		}
 
 		line := indent + punctStyle.Render(marker) + label + val
-		line = truncateANSI(line, width)
-		if i == m.jsonCursor {
-			line = cursorStyle.Render(line)
-		}
-		b.WriteString(line)
-		if i < len(m.jsonVisible)-1 {
-			b.WriteByte('\n')
+		lines = append(lines, line)
+		lineWidths = append(lineWidths, lipgloss.Width(line))
+	}
+
+	maxLineWidth := 0
+	for _, w := range lineWidths {
+		if w > maxLineWidth {
+			maxLineWidth = w
 		}
 	}
-	return b.String(), m.jsonCursor
+
+	if m.jsonLineMode == jsonLineModeWrap {
+		m.jsonHorizontalOffset = 0
+	} else {
+		maxOffset := max(0, maxLineWidth-width)
+		if m.jsonHorizontalOffset > maxOffset {
+			m.jsonHorizontalOffset = maxOffset
+		}
+		if m.jsonHorizontalOffset < 0 {
+			m.jsonHorizontalOffset = 0
+		}
+	}
+
+	var out []string
+	cursorLine := 0
+	for i, line := range lines {
+		if m.jsonLineMode == jsonLineModeWrap {
+			wrapped := wrapANSILine(line, width)
+			if len(wrapped) == 0 {
+				wrapped = []string{""}
+			}
+			if i == m.jsonCursor {
+				cursorLine = len(out)
+			}
+			for _, seg := range wrapped {
+				if i == m.jsonCursor {
+					seg = cursorStyle.Render(padANSI(seg, width))
+				}
+				out = append(out, seg)
+			}
+			continue
+		}
+
+		seg := ansi.Cut(line, m.jsonHorizontalOffset, m.jsonHorizontalOffset+width)
+		if i == m.jsonCursor {
+			cursorLine = len(out)
+			seg = cursorStyle.Render(padANSI(seg, width))
+		}
+		out = append(out, seg)
+	}
+
+	return strings.Join(out, "\n"), cursorLine
 }
 
 // formatNumber renders a JSON number without a trailing ".0" for integers.
@@ -326,13 +409,29 @@ func formatNumber(f float64) string {
 	return strconv.FormatFloat(f, 'g', -1, 64)
 }
 
-// truncateANSI trims a styled string to at most width visible columns, adding an
-// ellipsis when truncated. Uses lipgloss width measurement to ignore ANSI codes.
-func truncateANSI(s string, width int) string {
-	if lipgloss.Width(s) <= width {
+func wrapANSILine(s string, width int) []string {
+	if width < 1 {
+		return []string{s}
+	}
+	lineWidth := lipgloss.Width(s)
+	if lineWidth <= width {
+		return []string{s}
+	}
+
+	out := make([]string, 0, (lineWidth/width)+1)
+	for start := 0; start < lineWidth; start += width {
+		end := min(start+width, lineWidth)
+		out = append(out, ansi.Cut(s, start, end))
+	}
+	return out
+}
+
+func padANSI(s string, width int) string {
+	gap := width - lipgloss.Width(s)
+	if gap <= 0 {
 		return s
 	}
-	return lipgloss.NewStyle().MaxWidth(width).Render(s)
+	return s + strings.Repeat(" ", gap)
 }
 
 // jsonFocusedYank returns the focused node's value as indented JSON for yank.

@@ -633,7 +633,7 @@ func (m *simpleTuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.processLogLine(string(msg))
 
 		// Continue checking for more data if we have input sources
-		if (m.hasStdinData || m.hasFileInput || m.hasOTLPInput || m.hasVmlogsInput || m.hasK8sInput) && !m.finished {
+		if (m.hasStdinData || m.hasDemoInput || m.hasFileInput || m.hasOTLPInput || m.hasVmlogsInput || m.hasK8sInput) && !m.finished {
 			cmds = append(cmds, m.checkInputChannel())
 		}
 

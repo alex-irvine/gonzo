@@ -992,11 +992,28 @@ func (m *DashboardModel) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			case "enter", " ":
 				m.jsonToggle()
 				return m, nil
-			case "right", "l":
+			case "right":
+				if m.jsonLineMode == jsonLineModeScroll {
+					m.jsonScrollRight(8)
+				} else {
+					m.jsonExpand()
+				}
+				return m, nil
+			case "left":
+				if m.jsonLineMode == jsonLineModeScroll {
+					m.jsonScrollLeft(8)
+				} else {
+					m.jsonCollapse()
+				}
+				return m, nil
+			case "l":
 				m.jsonExpand()
 				return m, nil
-			case "left", "h":
+			case "h":
 				m.jsonCollapse()
+				return m, nil
+			case "w":
+				m.jsonToggleLineMode()
 				return m, nil
 			case "pgup":
 				m.jsonCursorMove(-10)

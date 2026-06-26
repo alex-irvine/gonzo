@@ -1,5 +1,5 @@
 {"level":"info","service":"orders","msg":"order placed","order":{"id":"A123","total":42.5,"paid":true,"coupon":null,"items":[{"sku":"X1","qty":2},{"sku":"Y9","qty":1}]}}
-{"level":"error","service":"checkout","msg":"payment failed","error":{"code":402,"retryable":false,"detail":"card_declined"},"reqId":"p8az76lx"}
+{"level":"error","service":"checkout","msg":"payment failed","error":{"code":402,"retryable":false,"detail":"card_declined","stack":"Error: card_declined\n    at chargeCard (src/payments/stripe_client.js:184:17)\n    at processPayment (src/checkout/service.js:97:21)\n    at async placeOrder (src/checkout/controller.js:42:13)\n    at async /srv/app/node_modules/express/lib/router/layer.js:95:5"},"reqId":"p8az76lx"}
 {"level":"warning","service":"edge","msg":"slow response","payload":"{\"route\":\"/api/cart\",\"ms\":1840,\"cache\":{\"hit\":false,\"keys\":[\"u:42\",\"sess:9\"]}}","timestampInMs":1758639343032}
 {"labels":{"k8s_namespace_name":"default","k8s_pod_name":"otelgen-pod-fa4dab31","service_name":"otelgen","severity_text":"Error"},"body":"connection reset by peer","observed_timestamp":"1757868504736590131"}
 {"level":"debug","service":"tracer","msg":"span closed","trace":{"span":{"id":"abc","parent":{"id":"root","attrs":{"depth":3,"sampled":true}}}}}

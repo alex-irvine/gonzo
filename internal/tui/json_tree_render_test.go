@@ -81,6 +81,60 @@ func TestRenderJSONTree_Empty(t *testing.T) {
 	}
 }
 
+func TestRenderJSONTree_WrapModeCursorTracksWrappedLines(t *testing.T) {
+	lipgloss.SetColorProfile(0)
+
+	m := &DashboardModel{}
+	m.buildJSONTree(LogEntry{RawLine: `{"a":"123456789012345678901234567890","b":1}`})
+	m.jsonCursorMove(1) // move from "a" to "b"
+
+	_, cursor := m.renderJSONTree(14)
+	if cursor <= 0 {
+		t.Fatalf("cursor line = %d, expected wrapped line offset > 0", cursor)
+	}
+}
+
+func TestRenderJSONTree_ScrollModePansLongLines(t *testing.T) {
+	lipgloss.SetColorProfile(0)
+
+	m := &DashboardModel{}
+	m.buildJSONTree(LogEntry{RawLine: `{"message":"abcdefghijklmnopqrstuvwxyz"}`})
+	m.jsonToggleLineMode() // wrap -> scroll
+	m.jsonScrollRight(19)
+
+	out, _ := m.renderJSONTree(20)
+	plain := stripANSI(out)
+
+	if strings.Contains(plain, "message") {
+		t.Fatalf("expected panned output to hide the left-side key, got: %q", plain)
+	}
+	if strings.Contains(plain, "abcdef") {
+		t.Fatalf("expected panned output to move past the line start, got: %q", plain)
+	}
+	if !strings.Contains(plain, "uvwxyz") {
+		t.Fatalf("expected panned output to include right-side content, got: %q", plain)
+	}
+}
+
+func TestJSONToggleLineMode_ResetsHorizontalOffsetWhenReturningToWrap(t *testing.T) {
+	m := &DashboardModel{}
+	m.buildJSONTree(LogEntry{RawLine: `{"message":"abcdefghijklmnopqrstuvwxyz"}`})
+
+	m.jsonToggleLineMode() // wrap -> scroll
+	m.jsonScrollRight(15)
+	if m.jsonHorizontalOffset == 0 {
+		t.Fatal("expected horizontal offset to increase in scroll mode")
+	}
+
+	m.jsonToggleLineMode() // scroll -> wrap
+	if m.jsonLineMode != jsonLineModeWrap {
+		t.Fatalf("line mode = %v, want wrap", m.jsonLineMode)
+	}
+	if m.jsonHorizontalOffset != 0 {
+		t.Fatalf("horizontal offset = %d, want 0", m.jsonHorizontalOffset)
+	}
+}
+
 func TestRenderDetailHeader(t *testing.T) {
 	lipgloss.SetColorProfile(0)
 
